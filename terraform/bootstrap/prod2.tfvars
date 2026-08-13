@@ -1,0 +1,6 @@
+aws_region           = "us-east-1"
+project_tag          = "Project: tinyuka-2025-capstone"
+state_bucket_name    = "bedrock-assets-alt-soe-tin-025-0021"
+github_repository    = "lemmy98/innovatemart-inc-project-bedrock"
+github_owner_id      = "44436774"
+github_repository_id = "1333230535"
