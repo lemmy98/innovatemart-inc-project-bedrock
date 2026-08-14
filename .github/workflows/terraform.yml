@@ -18,14 +18,14 @@ name: Terraform
 
 on:
   push:
-    branches: [dev] # TODO: switch to [main] when testing is done
+    branches: [main]
     paths:
       - "terraform/**"
       - "lambda/**"
       - "helm/**"
       - ".github/workflows/terraform.yml"
   pull_request:
-    branches: [dev] # TODO: switch to [main] when testing is done
+    branches: [main]
     paths:
       - "terraform/**"
       - "lambda/**"

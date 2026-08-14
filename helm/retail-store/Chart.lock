@@ -1,0 +1,18 @@
+dependencies:
+- name: retail-store-sample-catalog-chart
+  repository: oci://public.ecr.aws/aws-containers
+  version: 1.6.2
+- name: retail-store-sample-cart-chart
+  repository: oci://public.ecr.aws/aws-containers
+  version: 1.6.2
+- name: retail-store-sample-orders-chart
+  repository: oci://public.ecr.aws/aws-containers
+  version: 1.6.2
+- name: retail-store-sample-checkout-chart
+  repository: oci://public.ecr.aws/aws-containers
+  version: 1.6.2
+- name: retail-store-sample-ui-chart
+  repository: oci://public.ecr.aws/aws-containers
+  version: 1.6.2
+digest: sha256:79834a9141529e5253441fb9c0349df6bea91087f1faa4b3c03964b1f123eb07
+generated: "2026-08-14T19:27:57.516017+01:00"

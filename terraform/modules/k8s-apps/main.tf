@@ -260,13 +260,17 @@ resource "helm_release" "ui" {
     ingress = {
       enabled   = true
       className = "alb"
+      hosts     = ["lemikan-third-semester-exam-project.fyi"]
       annotations = {
         "alb.ingress.kubernetes.io/scheme"           = "internet-facing"
         "alb.ingress.kubernetes.io/target-type"      = "ip"
         "alb.ingress.kubernetes.io/healthcheck-path" = "/actuator/health/liveness"
-        "alb.ingress.kubernetes.io/listen-ports"     = jsonencode([{ HTTP = 80 }])
+        "alb.ingress.kubernetes.io/certificate-arn"  = "arn:aws:acm:us-east-1:193854996687:certificate/bafcd3e-d5a7-4783-af09-e5afe2180aa7"
+        "alb.ingress.kubernetes.io/listen-ports"     = jsonencode([{ HTTP = 80 }, { HTTPS = 443 }])
+        "alb.ingress.kubernetes.io/ssl-redirect"     = "443"
       }
       # Do NOT set hosts to { paths = ... }. Chart default ([]) = catch-all ALB rule.
+      
     }
   })]
 
