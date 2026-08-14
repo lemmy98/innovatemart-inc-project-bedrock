@@ -35,7 +35,7 @@ db_allocated_storage    = 20
 backup_retention_days   = 1
 
 chart_version           = "1.6.2"
-enable_app_deploy       = false # stage 1 only — flip true after kubectl get nodes shows Ready
+enable_app_deploy       = true # stage 1 only — flip true after kubectl get nodes shows Ready
 enable_network_policies = true
 
 budget_limit_usd          = 20
