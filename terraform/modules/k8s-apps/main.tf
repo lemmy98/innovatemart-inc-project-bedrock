@@ -39,8 +39,9 @@ resource "kubernetes_secret_v1" "orders_db" {
 
 resource "helm_release" "aws_load_balancer_controller" {
   name       = "aws-load-balancer-controller"
-  repository = "https://aws.github.io/eks-charts"
-  chart      = "aws-load-balancer-controller"
+  # repository = "https://aws.github.io/eks-charts"
+  # chart      = "aws-load-balancer-controller"
+  chart = "${path.module}/charts/aws-load-balancer-controller-1.13.4.tgz"
   version    = "1.13.4"
   namespace  = "kube-system"
 
