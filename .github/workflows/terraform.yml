@@ -1,0 +1,267 @@
+# Terraform CI for Project Bedrock (AWS)
+#
+# TESTING MODE: plan → approve → apply all run on **dev**.
+# When stable, change the `on:` branches and approval/apply `if:` filters to main only.
+#
+# Flow:
+#   1. plan     — Terraform plan + Infracost cost estimate
+#   2. approval — opens a GitHub Issue; comment "approve" or "deny"
+#   3. apply    — applies the saved plan artifact
+#
+# Secrets (OIDC only — no long-lived AWS access keys):
+#   TF_STATE_BUCKET
+#   AWS_ROLE_ARN          — from: cd terraform/bootstrap && terraform output -raw github_actions_role_arn
+#   AWS_REGION            — optional, default us-east-1
+#   INFRACOST_API_KEY     — optional, free at https://dashboard.infracost.io
+
+name: Terraform
+
+on:
+  push:
+    branches: [dev] # TODO: switch to [main] when testing is done
+    paths:
+      - "terraform/**"
+      - "lambda/**"
+      - "helm/**"
+      - ".github/workflows/terraform.yml"
+  pull_request:
+    branches: [dev] # TODO: switch to [main] when testing is done
+    paths:
+      - "terraform/**"
+      - "lambda/**"
+      - "helm/**"
+      - ".github/workflows/terraform.yml"
+
+env:
+  TF_DIR: terraform/envs
+  TF_VERSION: "1.11.4"
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  # Mapped so steps can test emptiness (secrets.* is not allowed in if:)
+  INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Plan + cost estimate (never mutates AWS)
+  # ---------------------------------------------------------------------------
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          # Keep the binary plan file usable in the apply job
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-plan
+
+      - name: Write backend.hcl
+        run: |
+          cat > backend.hcl <<EOF
+          bucket       = "${{ secrets.TF_STATE_BUCKET }}"
+          key          = "tinyuka/prod/terraform.tfstate"
+          region       = "${{ env.AWS_REGION }}"
+          encrypt      = true
+          use_lockfile = true
+          EOF
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive ../
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color \
+            -var-file=prod.tfvars \
+            -out=tfplan \
+            | tee plan.txt
+
+      - name: Convert plan to JSON (for Infracost)
+        run: terraform show -json tfplan > plan.json
+
+      # Infracost is NOT an AWS product — it prices AWS resources from the plan.
+      # Optional: set INFRACOST_API_KEY or these steps soft-fail and plan still continues.
+      - name: Setup Infracost
+        id: infracost_setup
+        continue-on-error: true
+        if: env.INFRACOST_API_KEY != ''
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ env.INFRACOST_API_KEY }}
+
+      - name: Infracost breakdown
+        id: infracost
+        continue-on-error: true
+        if: env.INFRACOST_API_KEY != '' && steps.infracost_setup.outcome == 'success'
+        run: |
+          infracost breakdown --path=plan.json \
+            --format=table \
+            --out-file=infracost.txt
+          infracost breakdown --path=plan.json \
+            --format=json \
+            --out-file=infracost.json
+          echo "===== Monthly cost estimate (Infracost) ====="
+          cat infracost.txt
+
+      - name: Upload plan + cost artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.sha }}
+          path: |
+            ${{ env.TF_DIR }}/tfplan
+            ${{ env.TF_DIR }}/plan.txt
+            ${{ env.TF_DIR }}/plan.json
+            ${{ env.TF_DIR }}/infracost.txt
+            ${{ env.TF_DIR }}/infracost.json
+            terraform/modules/serverless/build/
+          if-no-files-found: warn
+          retention-days: 5
+
+      - name: Comment plan on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/envs/plan.txt', 'utf8').slice(-65000);
+            let body = `### Terraform plan (\`prod.tfvars\`)\n\`\`\`\n${plan}\n\`\`\``;
+            try {
+              const cost = fs.readFileSync('terraform/envs/infracost.txt', 'utf8');
+              body += `\n\n### Infracost (monthly estimate)\n\`\`\`\n${cost}\n\`\`\``;
+            } catch (_) {
+              body += `\n\n_Infracost skipped (set secret \`INFRACOST_API_KEY\` to enable)._\n`;
+            }
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Comment Infracost on pull request
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && env.INFRACOST_API_KEY != '' && steps.infracost.outcome == 'success'
+        run: |
+          infracost comment github --path=infracost.json \
+            --repo=$GITHUB_REPOSITORY \
+            --github-token=${{ github.token }} \
+            --pull-request=${{ github.event.pull_request.number }} \
+            --behavior=update
+
+  # ---------------------------------------------------------------------------
+  # 2) Approval — push to dev only (testing)
+  # ---------------------------------------------------------------------------
+  approval:
+    name: Await manual approval
+    needs: plan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for approval issue
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: Better-Great
+          minimum-approvals: 1
+          issue-title: "APPROVE DEPLOY (dev): Terraform apply for ${{ github.sha }}"
+          issue-body: |
+            ## Terraform apply waiting for approval (testing on `dev`)
+
+            - **Commit:** ${{ github.sha }}
+            - **Branch:** `${{ github.ref_name }}`
+            - **Actor:** ${{ github.actor }}
+            - **Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            1. Open the **Terraform Plan** job.
+            2. Review `plan.txt` and **Infracost** (`infracost.txt`) in the logs / artifacts.
+            3. Comment **`approve`** on this issue to run apply.
+            4. Comment **`deny`** to cancel.
+
+            When testing is done, switch this pipeline to `main` only.
+
+  # ---------------------------------------------------------------------------
+  # 3) Apply — after approval; exact plan from the plan job
+  # ---------------------------------------------------------------------------
+  apply:
+    name: Terraform Apply
+    needs: approval
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-apply
+
+      - name: Write backend.hcl
+        run: |
+          cat > backend.hcl <<EOF
+          bucket       = "${{ secrets.TF_STATE_BUCKET }}"
+          key          = "tinyuka/prod/terraform.tfstate"
+          region       = "${{ env.AWS_REGION }}"
+          encrypt      = true
+          use_lockfile = true
+          EOF
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ github.sha }}
+          path: ${{ github.workspace }}/_tf_artifact
+
+      - name: Stage plan + Lambda zip
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          find _tf_artifact -type f | sort
+          find _tf_artifact -name tfplan -exec cp -f {} terraform/envs/tfplan \;
+          find _tf_artifact -name plan.txt -exec cp -f {} terraform/envs/plan.txt \;
+          mkdir -p terraform/modules/serverless/build
+          find _tf_artifact -name '*.zip' -exec cp -f {} terraform/modules/serverless/build/ \;
+          test -f terraform/envs/tfplan
+          test -f terraform/modules/serverless/build/bedrock-asset-processor.zip
+          ls -la terraform/envs/tfplan terraform/modules/serverless/build/
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: Terraform apply
+        run: terraform apply -input=false -auto-approve tfplan

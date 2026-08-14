@@ -1,0 +1,121 @@
+# Committed Helm values. No database passwords live here.
+# Terraform creates Kubernetes secrets `catalog-db` and `orders-db` from Secrets Manager.
+# Endpoints are supplied at install time via `--set` or values.generated.yaml (gitignored).
+
+catalog:
+  nameOverride: catalog
+  fullnameOverride: catalog
+  mysql:
+    create: false
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  app:
+    persistence:
+      provider: mysql
+      endpoint: "catalog.app.persistence.endpoint=host:3306" # --set catalog.app.persistence.endpoint=host:3306
+      database: catalog
+    secret:
+      create: false
+      name: catalog-db
+
+carts:
+  nameOverride: carts
+  fullnameOverride: carts
+  dynamodb:
+    create: false
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 384Mi
+  serviceAccount:
+    create: true
+    name: carts
+  app:
+    persistence:
+      provider: dynamodb
+      dynamodb:
+        tableName: bedrock-carts
+        createTable: false
+
+orders:
+  nameOverride: orders
+  fullnameOverride: orders
+  postgresql:
+    create: false
+  rabbitmq:
+    create: true
+    persistentVolume:
+      enabled: false
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 384Mi
+  app:
+    persistence:
+      provider: postgres
+      endpoint: "orders.app.persistence.endpoint=host:5432" # --set orders.app.persistence.endpoint=host:5432
+      database: orders
+    secret:
+      create: false
+      name: orders-db
+    messaging:
+      provider: rabbitmq
+
+checkout:
+  nameOverride: checkout
+  fullnameOverride: checkout
+  redis:
+    create: true
+    persistentVolume:
+      enabled: false
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  app:
+    persistence:
+      provider: redis
+    endpoints:
+      orders: http://orders:80
+
+ui:
+  nameOverride: ui
+  fullnameOverride: ui
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 384Mi
+  service:
+    type: ClusterIP
+  app:
+    endpoints:
+      catalog: http://catalog:80
+      carts: http://carts:80
+      orders: http://orders:80
+      checkout: http://checkout:80
+  ingress:
+    enabled: true
+    className: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/liveness
+    # Omit hostnames for ALB DNS access; chart treats each entry as a hostname string.
+    hosts: []

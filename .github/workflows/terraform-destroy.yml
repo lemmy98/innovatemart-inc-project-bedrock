@@ -1,0 +1,206 @@
+# Terraform Destroy for Project Bedrock (AWS)
+#
+# Same gated flow as apply: destroy-plan → Issue approval → apply destroy plan.
+# TESTING MODE: allowed on **dev** via workflow_dispatch only (never auto on push).
+# When stable, change the branch filter / docs to main only.
+#
+# Does NOT destroy bootstrap (state bucket + GitHub OIDC role).
+#
+# Secrets (OIDC only):
+#   TF_STATE_BUCKET, AWS_ROLE_ARN
+#   AWS_REGION (optional, default us-east-1)
+
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type destroy to confirm teardown of terraform/envs (keeps bootstrap)'
+        required: true
+        type: string
+
+env:
+  TF_DIR: terraform/envs
+  TF_VERSION: "1.11.4"
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  guard:
+    name: Confirm destroy intent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require typed confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "destroy" ]; then
+            echo "Refusing: type exactly 'destroy' in the confirm input."
+            exit 1
+          fi
+          if [ "${{ github.ref }}" != "refs/heads/dev" ]; then
+            echo "Refusing: destroy workflow is gated to the dev branch while testing."
+            echo "Current ref: ${{ github.ref }}"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 1) Destroy plan (no AWS mutations yet)
+  # ---------------------------------------------------------------------------
+  plan:
+    name: Terraform Destroy Plan
+    needs: guard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-destroy-plan
+
+      - name: Write backend.hcl
+        run: |
+          cat > backend.hcl <<EOF
+          bucket       = "${{ secrets.TF_STATE_BUCKET }}"
+          key          = "tinyuka/prod/terraform.tfstate"
+          region       = "${{ env.AWS_REGION }}"
+          encrypt      = true
+          use_lockfile = true
+          EOF
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: Terraform destroy plan
+        run: |
+          set -o pipefail
+          terraform plan -destroy -input=false -no-color \
+            -var-file=prod.tfvars \
+            -out=tfplan \
+            | tee plan.txt
+
+      - name: Upload destroy plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfdestroy-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            ${{ env.TF_DIR }}/tfplan
+            ${{ env.TF_DIR }}/plan.txt
+            terraform/modules/serverless/build/
+          if-no-files-found: warn
+          retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # 2) Approval — comment approve on the Issue
+  # ---------------------------------------------------------------------------
+  approval:
+    name: Await manual approval
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for approval issue
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: Better-Great
+          minimum-approvals: 1
+          issue-title: "APPROVE DESTROY (dev): Terraform destroy for ${{ github.sha }}"
+          issue-body: |
+            ## Terraform **DESTROY** waiting for approval (testing on `dev`)
+
+            This will tear down **terraform/envs** (EKS, VPC, RDS, DynamoDB, Lambda, budget, etc.).
+
+            **Keeps bootstrap:** state bucket + GitHub Actions OIDC role.
+
+            - **Commit:** ${{ github.sha }}
+            - **Branch:** `${{ github.ref_name }}`
+            - **Actor:** ${{ github.actor }}
+            - **Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            1. Open the **Terraform Destroy Plan** job and review `plan.txt`.
+            2. Comment **`approve`** on this issue to run destroy.
+            3. Comment **`deny`** to cancel.
+
+  # ---------------------------------------------------------------------------
+  # 3) Destroy — apply the saved destroy plan
+  # ---------------------------------------------------------------------------
+  destroy:
+    name: Terraform Destroy
+    needs: approval
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-destroy
+
+      - name: Write backend.hcl
+        run: |
+          cat > backend.hcl <<EOF
+          bucket       = "${{ secrets.TF_STATE_BUCKET }}"
+          key          = "tinyuka/prod/terraform.tfstate"
+          region       = "${{ env.AWS_REGION }}"
+          encrypt      = true
+          use_lockfile = true
+          EOF
+
+      - name: Download destroy plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfdestroy-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ github.workspace }}/_tf_artifact
+
+      - name: Stage destroy plan + Lambda zip
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          find _tf_artifact -type f | sort
+          find _tf_artifact -name tfplan -exec cp -f {} terraform/envs/tfplan \;
+          find _tf_artifact -name plan.txt -exec cp -f {} terraform/envs/plan.txt \;
+          mkdir -p terraform/modules/serverless/build
+          find _tf_artifact -name '*.zip' -exec cp -f {} terraform/modules/serverless/build/ \; || true
+          test -f terraform/envs/tfplan
+          ls -la terraform/envs/tfplan
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: Empty assets bucket (avoid destroy hang on objects)
+        run: |
+          set -euo pipefail
+          BUCKET=$(terraform output -raw assets_bucket_name)
+          echo "Emptying s3://${BUCKET} ..."
+          aws s3 rm "s3://${BUCKET}" --recursive || true
+
+      - name: Terraform destroy (apply saved plan)
+        run: terraform apply -input=false -auto-approve tfplan

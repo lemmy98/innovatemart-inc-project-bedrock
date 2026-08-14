@@ -11,6 +11,13 @@ resource "kubernetes_secret_v1" "catalog_db" {
   metadata {
     name      = "catalog-db"
     namespace = kubernetes_namespace_v1.app.metadata[0].name
+    labels = {
+      "app.kubernetes.io/managed-by" = "Helm"
+    }
+    annotations = {
+      "meta.helm.sh/release-name"      = "catalog"
+      "meta.helm.sh/release-namespace" = var.app_namespace
+    }
   }
 
   data = {
@@ -27,6 +34,13 @@ resource "kubernetes_secret_v1" "orders_db" {
   metadata {
     name      = "orders-db"
     namespace = kubernetes_namespace_v1.app.metadata[0].name
+    labels = {
+      "app.kubernetes.io/managed-by" = "Helm"
+    }
+    annotations = {
+      "meta.helm.sh/release-name"      = "orders"
+      "meta.helm.sh/release-namespace" = var.app_namespace
+    }
   }
 
   data = {
@@ -38,18 +52,14 @@ resource "kubernetes_secret_v1" "orders_db" {
 }
 
 resource "helm_release" "aws_load_balancer_controller" {
-  name       = "aws-load-balancer-controller"
-  # repository = "https://aws.github.io/eks-charts"
-  # chart      = "aws-load-balancer-controller"
-  chart = "${path.module}/charts/aws-load-balancer-controller-1.13.4.tgz"
-  version    = "1.13.4"
-  namespace  = "kube-system"
+  name      = "aws-load-balancer-controller"
+  chart     = "${path.module}/charts/aws-load-balancer-controller-1.13.4.tgz"
+  namespace = "kube-system"
 
   atomic          = true
   cleanup_on_fail = true
   timeout         = 300
 
-  # values/yamlencode works on Helm provider v2 and v3 (set {} blocks do not).
   values = [yamlencode({
     clusterName  = var.cluster_name
     replicaCount = 1
@@ -103,7 +113,10 @@ resource "helm_release" "catalog" {
     }
   })]
 
-  depends_on = [helm_release.aws_load_balancer_controller]
+  depends_on = [
+    helm_release.aws_load_balancer_controller,
+    kubernetes_secret_v1.catalog_db,
+  ]
 }
 
 resource "helm_release" "carts" {
@@ -181,7 +194,10 @@ resource "helm_release" "orders" {
     }
   })]
 
-  depends_on = [helm_release.aws_load_balancer_controller]
+  depends_on = [
+    helm_release.aws_load_balancer_controller,
+    kubernetes_secret_v1.orders_db,
+  ]
 }
 
 resource "helm_release" "checkout" {
@@ -217,13 +233,14 @@ resource "helm_release" "checkout" {
 }
 
 resource "helm_release" "ui" {
-  name       = "ui"
-  repository = "oci://public.ecr.aws/aws-containers"
-  chart      = "retail-store-sample-ui-chart"
-  version    = var.chart_version
-  namespace  = kubernetes_namespace_v1.app.metadata[0].name
-  timeout    = 300
-  wait       = true
+  name         = "ui"
+  repository   = "oci://public.ecr.aws/aws-containers"
+  chart        = "retail-store-sample-ui-chart"
+  version      = var.chart_version
+  namespace    = kubernetes_namespace_v1.app.metadata[0].name
+  timeout      = 300
+  wait         = true
+  force_update = true
 
   values = [yamlencode({
     replicaCount = 1
@@ -249,16 +266,7 @@ resource "helm_release" "ui" {
         "alb.ingress.kubernetes.io/healthcheck-path" = "/actuator/health/liveness"
         "alb.ingress.kubernetes.io/listen-ports"     = jsonencode([{ HTTP = 80 }])
       }
-      hosts = [
-        {
-          paths = [
-            {
-              path     = "/"
-              pathType = "Prefix"
-            }
-          ]
-        }
-      ]
+      # Do NOT set hosts to { paths = ... }. Chart default ([]) = catch-all ALB rule.
     }
   })]
 

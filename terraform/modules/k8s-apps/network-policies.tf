@@ -39,7 +39,7 @@ resource "kubernetes_network_policy_v1" "ui" {
 
     egress {
       ports {
-        port     = "80"
+        port     = "8080"
         protocol = "TCP"
       }
       to {
@@ -228,7 +228,7 @@ resource "kubernetes_network_policy_v1" "checkout" {
 
     egress {
       ports {
-        port     = "80"
+        port     = "8080"
         protocol = "TCP"
       }
       to {

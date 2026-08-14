@@ -1,0 +1,5 @@
+Retail store umbrella (v{{ .Chart.AppVersion }}).
+
+Stage 2 install path is Terraform (`enable_app_deploy = true`).
+Use this chart from a node only if you are not letting Terraform manage Helm.
+Do not run both.
