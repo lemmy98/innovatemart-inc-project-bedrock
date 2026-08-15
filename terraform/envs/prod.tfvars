@@ -42,3 +42,6 @@ budget_limit_usd          = 20
 budget_notification_email = "lemikanemmanuel@gmail.com"
 
 enable_cluster_autoscaler = true
+
+ui_hostname         = "lemikan-third-semester-exam-project.fyi"
+acm_certificate_arn = "arn:aws:acm:us-east-1:193854996687:certificate/1bafcd3e-d5a7-4783-af09-e5afe2180aa7"
