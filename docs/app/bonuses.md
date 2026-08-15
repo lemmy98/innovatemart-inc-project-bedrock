@@ -15,18 +15,23 @@ YAML (`kubectl apply -k k8s/` / **K8s Deploy**) is the other path — pick **one
 
 ## 5.2 TLS / ACM (after the ALB exists)
 
-FQDN: set `ui_hostname` in `prod.tfvars` after you have a domain + ACM cert (bonus 5.2).
+FQDN: `lemikan-third-semester-exam-project.fyi` (apex). ACM cert in this account is **ISSUED**:
 
-1. Stage 2 until `kubectl -n retail-app get ingress` shows an `ADDRESS` (`*.elb.amazonaws.com`).
-2. In Cloudflare create **two DNS-only (grey cloud)** records:
+`arn:aws:acm:us-east-1:193854996687:certificate/1bafcd3e-d5a7-4783-af09-e5afe2180aa7`
+
+DNS is at Cloudflare (`kyle.ns.cloudflare.com` / `gwen.ns.cloudflare.com`), not Route 53. The ALB will not show the Amazon cert to browsers while the record is **proxied** (orange cloud).
+
+1. Confirm `kubectl -n retail-app get ingress` shows `ADDRESS` `k8s-retailap-ui-6039ab69e6-1045815775.us-east-1.elb.amazonaws.com`.
+2. In Cloudflare (or the .fyi registrar if you move nameservers) create these **DNS-only (grey cloud)** records:
 
 | Type | Name | Target |
 | --- | --- | --- |
-| CNAME | `retailstore` | ALB hostname (e.g. `k8s-retailap-ui-….elb.amazonaws.com`) |
-| CNAME | `_d12425288d50d3bd6e69599c34ab3b82.retailstore` | `_f239b42418ab4ccd5084b466702ec1bd.jkddzztszm.acm-validations.aws.` |
+| CNAME | `@` | `k8s-retailap-ui-6039ab69e6-1045815775.us-east-1.elb.amazonaws.com` |
+| CNAME | `_16e8c7cfbcc092437bab54acb1a9a870` | `_9ceb8fbfd8e4c4c6abffc3ddf6fdd8a3.jkddzztszm.acm-validations.aws.` |
 
-3. Wait until ACM status is `ISSUED` for the cert in `us-east-1`.
-4. Helm values / `k8s/ingress/ui.yaml` already set `ui_hostname`, `certificate-arn`, HTTPS :443, and SSL redirect — run Helm Deploy (or `./scripts/helm-up.sh`).
+Cloudflare flattens the apex CNAME. Do not orange-cloud the `@` record if graders should see the ACM issuer (`Amazon RSA 2048`).
+
+3. Helm values / `k8s/ingress/ui.yaml` already set the hostname, `certificate-arn`, HTTPS :443, and SSL redirect. Upgrade the live `ui` release (or **Helm Deploy** / `./scripts/helm-up.sh`) so the Ingress ARN is the issued cert above — a truncated ARN will leave the ALB on :80 only.
 
 YAML path: same annotations + `spec.rules[].host` on [`k8s/ingress/ui.yaml`](../../k8s/ingress/ui.yaml).
 

@@ -39,6 +39,6 @@ Student ID `alt/soe/tin/025/0021` cannot be an S3 name (`/` and spaces are illeg
 | Cost guardrail | AWS Budget ~$20 on the project tag | Email before the bill surprises you |
 | App in `retail-app` | YAML/Kustomize (`k8s/`) **or** Helm stage 2 (exam allows both) | Same namespace and managed DBs either way |
 | App + ALB on EKS | Helm stage 2 after nodes are Ready (`enable_app_deploy`) | Avoids half-broken first applies |
-| Bonuses 5.1–5.5 | Helm, TLS-after-ALB, Cluster Autoscaler, NetworkPolicy, RDS backup + self-heal | Full extra credit; TLS waits on a real subdomain |
+| Bonuses 5.1–5.5 | Helm, TLS/ACM on `lemikan-third-semester-exam-project.fyi`, Cluster Autoscaler, NetworkPolicy, RDS backup + self-heal | Full extra credit |
 
 Full sizes: [specs.md](specs.md). Apply order: [terraform/stages.md](terraform/stages.md).

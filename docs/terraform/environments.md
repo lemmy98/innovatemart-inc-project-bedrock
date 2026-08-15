@@ -17,7 +17,7 @@ Modules should describe *shape*. Tfvars describe *this exam’s numbers*. That m
 | `enable_app_deploy` | `true` after stage 1 | ALB controller + CA + carts IRSA (shop = K8s Deploy workflow) |
 | `enable_network_policies` | `false` | NPs live in `k8s/networkpolicies/` |
 | `enable_cluster_autoscaler` | `true` | Bonus 5.3 |
-| `ui_hostname` / `acm_certificate_arn` | empty | Bonus 5.2; set on Ingress after ACM |
+| `ui_hostname` / `acm_certificate_arn` | `lemikan-third-semester-exam-project.fyi` + issued ACM ARN | Bonus 5.2; Ingress HTTPS + SSL redirect |
 | `install_helm_on_nodes` | `true` | Helm binary via cloud-init |
 | `budget_notification_email` | `lemikanemmanuel@gmail.com` | Where AWS Budget writes |
 

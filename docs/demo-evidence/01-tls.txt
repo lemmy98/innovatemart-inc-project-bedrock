@@ -1,7 +1,10 @@
 === TLS ===
 https_home=200 ssl_verify=0
 https_catalog=200
-subject=CN = retailstore.better-great.com
-issuer=C = US, O = Amazon, CN = Amazon RSA 2048 M01
+http_redirect=301 -> https://lemikan-third-semester-exam-project.fyi:443/
+subject=CN = lemikan-third-semester-exam-project.fyi
+issuer=C = US, O = Amazon, CN = Amazon RSA 2048 M04
 notBefore=Aug 14 00:00:00 2026 GMT
 notAfter=Feb 27 23:59:59 2027 GMT
+acm=arn:aws:acm:us-east-1:193854996687:certificate/1bafcd3e-d5a7-4783-af09-e5afe2180aa7
+alb=k8s-retailap-ui-6039ab69e6-1045815775.us-east-1.elb.amazonaws.com
