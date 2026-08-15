@@ -40,3 +40,5 @@ enable_network_policies = true
 
 budget_limit_usd          = 20
 budget_notification_email = "lemikanemmanuel@gmail.com"
+
+enable_cluster_autoscaler = true

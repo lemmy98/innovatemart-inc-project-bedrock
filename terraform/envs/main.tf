@@ -1,4 +1,6 @@
-# Stage 1: cloud resources. Stage 2: set enable_app_deploy = true after nodes are Ready.
+# Stage 1 — cloud resources. module.k8s_apps installs ALB controller +
+# Cluster Autoscaler + carts IRSA when enable_app_deploy is true.
+# The shop itself is applied from k8s/ via .github/workflows/k8s-deploy.yml.
 
 module "networking" {
   source = "../modules/networking"
@@ -48,6 +50,7 @@ module "eks" {
   log_retention_days      = var.log_retention_days
   app_namespace           = var.app_namespace
   developer_principal_arn = module.iam_developer.user_arn
+  operator_principal_arns = var.operator_principal_arns
   tags                    = local.required_tags
 }
 
@@ -80,21 +83,27 @@ module "k8s_apps" {
   count  = var.enable_app_deploy ? 1 : 0
   source = "../modules/k8s-apps"
 
-  cluster_name            = module.eks.cluster_name
-  aws_region              = var.aws_region
-  app_namespace           = var.app_namespace
-  chart_version           = var.chart_version
-  oidc_provider_arn       = module.eks.oidc_provider_arn
-  catalog_endpoint        = module.data.catalog_endpoint
-  catalog_username        = module.data.catalog_username
-  catalog_password        = module.data.catalog_password
-  orders_endpoint         = module.data.orders_endpoint
-  orders_username         = module.data.orders_username
-  orders_password         = module.data.orders_password
-  dynamodb_table_name     = module.data.dynamodb_table_name
-  dynamodb_table_arn      = module.data.dynamodb_table_arn
-  enable_network_policies = var.enable_network_policies
-  tags                    = local.required_tags
+  cluster_name              = module.eks.cluster_name
+  aws_region                = var.aws_region
+  app_namespace             = var.app_namespace
+  chart_version             = var.chart_version
+  oidc_provider_arn         = module.eks.oidc_provider_arn
+  catalog_endpoint          = module.data.catalog_endpoint
+  catalog_username          = module.data.catalog_username
+  catalog_password          = module.data.catalog_password
+  orders_endpoint           = module.data.orders_endpoint
+  orders_username           = module.data.orders_username
+  orders_password           = module.data.orders_password
+  dynamodb_table_name       = module.data.dynamodb_table_name
+  dynamodb_table_arn        = module.data.dynamodb_table_arn
+  enable_network_policies   = var.enable_network_policies
+  enable_cluster_autoscaler = var.enable_cluster_autoscaler
+  ui_hostname               = var.ui_hostname
+  acm_certificate_arn       = var.acm_certificate_arn
+  tags                      = local.required_tags
 
   depends_on = [module.eks, module.data]
 }
+
+# GitHub Actions OIDC role lives in terraform/bootstrap (chicken-and-egg:
+# CI needs the role before it can apply this stack).

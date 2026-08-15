@@ -14,7 +14,7 @@ variable "state_bucket_name" {
 }
 
 variable "github_repository" {
-  description = "GitHub org/repo allowed to assume the CI OIDC role (e.g. Better-Great/AWS-Containers-Retail-Sample)."
+  description = "GitHub org/repo allowed to assume the CI OIDC role (e.g. lemmy98/innovatemart-inc-project-bedrock)."
   type        = string
 }
 

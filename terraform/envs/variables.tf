@@ -38,6 +38,12 @@ variable "developer_user_name" {
   type        = string
 }
 
+variable "operator_principal_arns" {
+  description = "IAM principals granted AmazonEKSClusterAdminPolicy (local kubectl / demos)."
+  type        = list(string)
+  default     = []
+}
+
 variable "lambda_name" {
   description = "Lambda function name. Exam requires bedrock-asset-processor."
   type        = string
@@ -130,12 +136,29 @@ variable "chart_version" {
 }
 
 variable "enable_app_deploy" {
-  description = "Deploy Helm releases after the cluster exists. Set false for the first infra-only apply if needed."
+  description = "Install ALB controller, Cluster Autoscaler, and carts IRSA. Shop is applied via k8s-deploy workflow."
   type        = bool
 }
 
 variable "enable_network_policies" {
   type = bool
+}
+
+variable "enable_cluster_autoscaler" {
+  description = "Install Cluster Autoscaler in stage 2 (bonus 5.3)."
+  type        = bool
+}
+
+variable "ui_hostname" {
+  description = "Subdomain for the UI ALB (bonus 5.2). Leave empty until ACM is issued."
+  type        = string
+  default     = ""
+}
+
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for the UI hostname. Leave empty until validated."
+  type        = string
+  default     = ""
 }
 
 variable "budget_limit_usd" {
