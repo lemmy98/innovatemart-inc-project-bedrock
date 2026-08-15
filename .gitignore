@@ -1,0 +1,75 @@
+# Agent / exam working notes — never commit
+ai-docs/
+ai-docs/**
+
+# Terraform
+.terraform/
+# Lockfiles belong only on root modules (envs/, bootstrap/), not child modules/
+terraform/modules/**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+terraform.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kubeconfig
+kubeconfig-*
+credentials.json
+secrets.yaml
+secrets.json
+k8s/secrets/catalog-db.yaml
+k8s/secrets/orders-db.yaml
+k8s/secrets/orders-rabbitmq.yaml
+k8s/generated/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+*.swp
+*.swo
+
+# Local agent tooling
+.claude/
+
+# Python (Lambda packaging)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+lambda/*.zip
+**/.build/
+terraform/modules/serverless/build/
+
+# Generated artifacts that may contain secrets
+grading.raw.json
+helm/retail-store/values.generated.yaml
+# Chart.lock is committed with vendored charts/*.tgz so CI avoids ECR Public 429s.
+terraform/envs/backend.hcl
+terraform/bootstrap/backend.hcl
+terraform/bootstrap/*.tfstate
+terraform/bootstrap/*.tfstate.*
+terraform/bootstrap/plan.txt
+grading.json
+
+# Local tooling / junk (do not commit)
+darwin-arm64/
+helm-v3.17.0-darwin-arm64.tar.gz
+tmp/

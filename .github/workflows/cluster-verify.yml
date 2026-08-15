@@ -1,0 +1,53 @@
+# Verify in-cluster controllers, NetworkPolicies, and bonus demos 5.4–5.5.
+# Optional Cluster Autoscaler scale-up via workflow_dispatch input (costs a 3rd node briefly).
+
+name: Cluster Verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_ca_demo:
+        description: "Run Cluster Autoscaler scale-up (5.3)"
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  CLUSTER_NAME: project-bedrock-cluster
+  NS: retail-app
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    name: controllers + NP + self-heal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-verify
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.0
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+          kubectl get nodes
+
+      - name: Run bonus demos
+        env:
+          RUN_CA: ${{ inputs.run_ca_demo && '1' || '0' }}
+        run: |
+          chmod +x scripts/demo-bonuses.sh
+          ./scripts/demo-bonuses.sh

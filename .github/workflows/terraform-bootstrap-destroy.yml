@@ -1,27 +1,22 @@
-# Terraform Destroy for Project Bedrock (AWS)
+# Terraform Bootstrap Destroy (stage 0 teardown)
 #
-# Same gated flow as apply: destroy-plan → Issue approval → apply destroy plan.
-# TESTING MODE: allowed on **dev** via workflow_dispatch only (never auto on push).
-# When stable, change the branch filter / docs to main only.
+# Destroys state bucket + GitHub OIDC role. ONLY after terraform/envs is gone.
+# Requires typed confirm=destroy-bootstrap on workflow_dispatch.
 #
-# Does NOT destroy bootstrap (state bucket + GitHub OIDC role).
-#
-# Secrets (OIDC only):
-#   TF_STATE_BUCKET, AWS_ROLE_ARN
-#   AWS_REGION (optional, default us-east-1)
+# Secrets: TF_STATE_BUCKET, AWS_ROLE_ARN
 
-name: Terraform Destroy
+name: Terraform Bootstrap Destroy
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type destroy to confirm teardown of terraform/envs (keeps bootstrap)'
+        description: "Type destroy-bootstrap (envs stack must already be destroyed)"
         required: true
         type: string
 
 env:
-  TF_DIR: terraform/envs
+  TF_DIR: terraform/bootstrap
   TF_VERSION: "1.11.4"
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
@@ -32,26 +27,22 @@ permissions:
 
 jobs:
   guard:
-    name: Confirm destroy intent
+    name: Confirm bootstrap destroy intent
     runs-on: ubuntu-latest
     steps:
       - name: Require typed confirmation
         run: |
-          if [ "${{ inputs.confirm }}" != "destroy" ]; then
-            echo "Refusing: type exactly 'destroy' in the confirm input."
+          if [ "${{ inputs.confirm }}" != "destroy-bootstrap" ]; then
+            echo "Refusing: type exactly 'destroy-bootstrap'."
             exit 1
           fi
           if [ "${{ github.ref }}" != "refs/heads/dev" ]; then
-            echo "Refusing: destroy workflow is gated to the dev branch while testing."
-            echo "Current ref: ${{ github.ref }}"
+            echo "Refusing: gated to dev while testing. Current: ${{ github.ref }}"
             exit 1
           fi
 
-  # ---------------------------------------------------------------------------
-  # 1) Destroy plan (no AWS mutations yet)
-  # ---------------------------------------------------------------------------
   plan:
-    name: Terraform Destroy Plan
+    name: Bootstrap destroy plan
     needs: guard
     runs-on: ubuntu-latest
     defaults:
@@ -72,13 +63,35 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-bedrock-destroy-plan
+          role-session-name: gha-bedrock-bootstrap-destroy-plan
+
+      - name: Refuse if envs state still has resources
+        run: |
+          set -euo pipefail
+          # If main stack state object exists and is non-trivial, block.
+          if aws s3api head-object \
+            --bucket "${{ secrets.TF_STATE_BUCKET }}" \
+            --key "tinyuka/prod/terraform.tfstate" 2>/dev/null; then
+            SIZE=$(aws s3api head-object \
+              --bucket "${{ secrets.TF_STATE_BUCKET }}" \
+              --key "tinyuka/prod/terraform.tfstate" \
+              --query ContentLength --output text)
+            echo "envs state size=$SIZE"
+            # Empty-ish state is tiny; live stacks are much larger. Soft guard:
+            if [ "${SIZE:-0}" -gt 5000 ]; then
+              echo "Refusing: terraform/envs state still looks populated."
+              echo "Run Terraform Destroy (envs) first, then bootstrap destroy."
+              exit 1
+            fi
+          else
+            echo "No envs state object (or already removed) — OK"
+          fi
 
       - name: Write backend.hcl
         run: |
           cat > backend.hcl <<EOF
           bucket       = "${{ secrets.TF_STATE_BUCKET }}"
-          key          = "tinyuka/prod/terraform.tfstate"
+          key          = "tinyuka/bootstrap/terraform.tfstate"
           region       = "${{ env.AWS_REGION }}"
           encrypt      = true
           use_lockfile = true
@@ -95,20 +108,15 @@ jobs:
             -out=tfplan \
             | tee plan.txt
 
-      - name: Upload destroy plan artifact
+      - name: Upload destroy plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfdestroy-${{ github.sha }}-${{ github.run_id }}
+          name: bootstrap-tfdestroy-${{ github.sha }}-${{ github.run_id }}
           path: |
             ${{ env.TF_DIR }}/tfplan
             ${{ env.TF_DIR }}/plan.txt
-            terraform/modules/serverless/build/
-          if-no-files-found: warn
           retention-days: 5
 
-  # ---------------------------------------------------------------------------
-  # 2) Approval — comment approve on the Issue
-  # ---------------------------------------------------------------------------
   approval:
     name: Await manual approval
     needs: plan
@@ -120,28 +128,19 @@ jobs:
           secret: ${{ github.token }}
           approvers: lemmy98
           minimum-approvals: 1
-          issue-title: "APPROVE DESTROY (dev): Terraform destroy for ${{ github.sha }}"
+          issue-title: "APPROVE BOOTSTRAP DESTROY (dev): ${{ github.sha }}"
           issue-body: |
-            ## Terraform **DESTROY** waiting for approval (testing on `dev`)
+            ## Bootstrap DESTROY waiting for approval
 
-            This will tear down **terraform/envs** (EKS, VPC, RDS, DynamoDB, Lambda, budget, etc.).
+            This deletes the **state bucket** and **GitHub OIDC role**.
+            Only approve after `terraform/envs` is fully destroyed.
 
-            **Keeps bootstrap:** state bucket + GitHub Actions OIDC role.
-
-            - **Commit:** ${{ github.sha }}
-            - **Branch:** `${{ github.ref_name }}`
-            - **Actor:** ${{ github.actor }}
             - **Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            1. Open the **Terraform Destroy Plan** job and review `plan.txt`.
-            2. Comment **`approve`** on this issue to run destroy.
-            3. Comment **`deny`** to cancel.
+            Comment **`approve`** or **`deny`**.
 
-  # ---------------------------------------------------------------------------
-  # 3) Destroy — apply the saved destroy plan
-  # ---------------------------------------------------------------------------
   destroy:
-    name: Terraform Destroy
+    name: Bootstrap Destroy
     needs: approval
     runs-on: ubuntu-latest
     defaults:
@@ -162,45 +161,47 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-bedrock-destroy
+          role-session-name: gha-bedrock-bootstrap-destroy
 
       - name: Write backend.hcl
         run: |
           cat > backend.hcl <<EOF
           bucket       = "${{ secrets.TF_STATE_BUCKET }}"
-          key          = "tinyuka/prod/terraform.tfstate"
+          key          = "tinyuka/bootstrap/terraform.tfstate"
           region       = "${{ env.AWS_REGION }}"
           encrypt      = true
           use_lockfile = true
           EOF
 
-      - name: Download destroy plan artifact
+      - name: Download plan
         uses: actions/download-artifact@v4
         with:
-          name: tfdestroy-${{ github.sha }}-${{ github.run_id }}
+          name: bootstrap-tfdestroy-${{ github.sha }}-${{ github.run_id }}
           path: ${{ github.workspace }}/_tf_artifact
 
-      - name: Stage destroy plan + Lambda zip
+      - name: Stage plan
         working-directory: ${{ github.workspace }}
         run: |
-          set -euo pipefail
-          find _tf_artifact -type f | sort
-          find _tf_artifact -name tfplan -exec cp -f {} terraform/envs/tfplan \;
-          find _tf_artifact -name plan.txt -exec cp -f {} terraform/envs/plan.txt \;
-          mkdir -p terraform/modules/serverless/build
-          find _tf_artifact -name '*.zip' -exec cp -f {} terraform/modules/serverless/build/ \; || true
-          test -f terraform/envs/tfplan
-          ls -la terraform/envs/tfplan
+          find _tf_artifact -name tfplan -exec cp -f {} terraform/bootstrap/tfplan \;
+          test -f terraform/bootstrap/tfplan
 
       - name: Terraform init
         run: terraform init -input=false -backend-config=backend.hcl
 
-      - name: Empty assets bucket (avoid destroy hang on objects)
+      - name: Empty state bucket versions (avoid destroy hang)
         run: |
           set -euo pipefail
-          BUCKET=$(terraform output -raw assets_bucket_name)
-          echo "Emptying s3://${BUCKET} ..."
-          aws s3 rm "s3://${BUCKET}" --recursive || true
+          BUCKET="${{ secrets.TF_STATE_BUCKET }}"
+          aws s3api list-object-versions --bucket "$BUCKET" --output json \
+            | python3 -c '
+          import json,sys,subprocess
+          d=json.load(sys.stdin)
+          objs=[{"Key":o["Key"],"VersionId":o["VersionId"]} for o in d.get("Versions",[])+d.get("DeleteMarkers",[])]
+          while objs:
+            batch,objs=objs[:1000],objs[1000:]
+            body=json.dumps({"Objects":batch,"Quiet":True})
+            subprocess.run(["aws","s3api","delete-objects","--bucket","'"$BUCKET"'","--delete",body],check=False)
+          ' || true
 
       - name: Terraform destroy (apply saved plan)
         run: terraform apply -input=false -auto-approve tfplan

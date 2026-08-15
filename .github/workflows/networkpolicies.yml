@@ -1,0 +1,46 @@
+# Apply NetworkPolicies only — never deletes the namespace / ALB.
+
+name: NetworkPolicies
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "k8s/networkpolicies/**"
+      - ".github/workflows/networkpolicies.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  CLUSTER_NAME: project-bedrock-cluster
+  NS: retail-app
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    name: kubectl apply networkpolicies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-nps
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.0
+
+      - name: Apply NetworkPolicies
+        run: |
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+          kubectl apply -n "$NS" -f k8s/networkpolicies/
+          kubectl -n "$NS" get networkpolicy

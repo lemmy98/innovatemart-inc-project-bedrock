@@ -1,0 +1,98 @@
+# Deploy retail-app with the Helm umbrella (bonus 5.1).
+#
+# Terraform owns AWS + ALB controller + Cluster Autoscaler + carts IRSA.
+# Default: helm upgrade in place (keeps the same ALB / Ingress).
+# Wipe + reinstall only when workflow_dispatch sets replace_existing=true.
+#
+# Needs secret AWS_ROLE_ARN (same OIDC role as Terraform / K8s Deploy).
+
+name: Helm Deploy
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "helm/retail-store/**"
+      - "scripts/helm-*.sh"
+      - ".github/workflows/helm-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      replace_existing:
+        description: "Delete retail-app namespace first (creates a NEW ALB — update DNS)"
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  CLUSTER_NAME: project-bedrock-cluster
+  NS: retail-app
+  # In-place upgrade by default so Cloudflare CNAME stays valid.
+  REPLACE_EXISTING: ${{ github.event_name == 'workflow_dispatch' && inputs.replace_existing && '1' || '0' }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: helm upgrade --install retail-store
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-helm
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+          kubectl get nodes
+          echo "REPLACE_EXISTING=${REPLACE_EXISTING}"
+
+      - name: Helm install (scripts/helm-up.sh)
+        run: |
+          chmod +x scripts/helm-up.sh scripts/helm-down.sh
+          ./scripts/helm-up.sh
+
+      - name: Smoke test shop via ALB
+        run: |
+          set -euo pipefail
+          HOST="$(kubectl -n "$NS" get ingress ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+          echo "ALB=$HOST"
+          test -n "$HOST"
+          # Ingress may require Host when ui_hostname is set
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /tmp/ui.out -w '%{http_code}' --connect-timeout 5 \
+              "http://${HOST}/" || true)"
+            echo "attempt $i → HTTP $code"
+            if [[ "$code" == "200" || "$code" == "301" || "$code" == "302" ]]; then
+              head -c 200 /tmp/ui.out; echo
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "UI did not return 200"
+          kubectl -n "$NS" get pods
+          kubectl -n "$NS" logs -l app.kubernetes.io/name=ui --tail=50 || true
+          exit 1
+
+      - name: Show status
+        if: always()
+        run: |
+          kubectl -n "$NS" get pods,svc,ingress
+          kubectl -n "$NS" get ingress ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}{"\n"}'

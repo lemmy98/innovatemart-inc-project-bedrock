@@ -1,0 +1,8 @@
+{
+  "terraform.languageServer.enable": true,
+  "terraform.languageServer.terraform.rootModules": [
+    "${workspaceFolder}/terraform/envs",
+    "${workspaceFolder}/terraform/bootstrap"
+  ],
+  "terraform.languageServer.terraform.ignoreSingleFileWarning": true
+}

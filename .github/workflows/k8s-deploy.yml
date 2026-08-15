@@ -1,0 +1,81 @@
+# Deploy retail-app from k8s/ (YAML/Kustomize) onto EKS.
+#
+# Terraform owns AWS + ALB controller + Cluster Autoscaler + carts IRSA.
+# This workflow owns the shop manifests (exam YAML path).
+#
+# Secrets: TF_STATE_BUCKET not required. Needs AWS_ROLE_ARN (same OIDC role).
+
+name: K8s Deploy
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "k8s/**"
+      - "scripts/k8s-*.sh"
+      - ".github/workflows/k8s-deploy.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  CLUSTER_NAME: project-bedrock-cluster
+  NS: retail-app
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: kubectl apply -k k8s/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-bedrock-k8s
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.0
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+          kubectl get nodes
+
+      - name: Sync Secrets Manager → Kubernetes Secrets
+        run: ./scripts/k8s-sync-secrets.sh
+
+      - name: Apply kustomize (k8s/)
+        run: |
+          kubectl apply -k k8s/
+
+      - name: Attach carts IRSA (SA now exists)
+        run: ./scripts/k8s-sync-secrets.sh
+
+      - name: Restart carts so IRSA + region env take effect
+        run: kubectl -n "$NS" rollout restart deploy/carts
+
+      - name: Wait for rollouts
+        run: |
+          kubectl -n "$NS" rollout status deploy/ui --timeout=300s
+          kubectl -n "$NS" rollout status deploy/catalog --timeout=300s
+          kubectl -n "$NS" rollout status deploy/carts --timeout=420s
+          kubectl -n "$NS" rollout status deploy/orders --timeout=300s
+          kubectl -n "$NS" rollout status deploy/checkout --timeout=300s
+          kubectl -n "$NS" rollout status statefulset/orders-rabbitmq --timeout=180s
+          kubectl -n "$NS" get pods
+          kubectl -n "$NS" describe pod -l app.kubernetes.io/name=carts | tail -40
+
+      - name: Show shop status + Ingress
+        run: |
+          kubectl -n "$NS" get pods,svc,ingress,networkpolicy
+          echo "----"
+          kubectl -n "$NS" get ingress ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}{"\n"}'
