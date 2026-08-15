@@ -1,14 +1,8 @@
 # networkpolicies/
 
-## Aim
+Default-deny inbound, then I allow only the paths the shop uses. Exam bonus 5.4.
 
-Make “who may talk to whom” **explicit**. Default is deny inbound; then we open only the paths the shop actually uses.
-
-This is the exam bonus, same idea as Terraform `k8s-apps` NetworkPolicies.
-
-## Why default-deny first
-
-Without a default deny, a typo in one policy is an open cluster. With it, a missing allow shows up as a timeout — noisy, but safe.
+Without a default deny, a typo leaves the cluster open. With it, a missing allow shows up as a timeout — easier for me to debug.
 
 ```
 ui          ← internet (ALB → 8080)
@@ -21,15 +15,7 @@ redis       ← checkout only
 rabbitmq    ← orders only
 ```
 
-DNS (53 TCP/UDP) is allowed so pods can resolve Service and RDS names. We do not pin DNS to `kube-system` so the policies stay portable.
-
-## What we aim to achieve
-
-- UI ingress is **not** restricted to a pod source — the ALB target-type IP traffic does not look like a pod in this namespace.
-- Carts egress is **443 only** (AWS APIs), not a local `:8000`. That is intentional: DynamoDB Local is not part of this install.
-- Policies select `app.kubernetes.io/name` (+ `component` where Redis/RabbitMQ share a name with the app).
-
-## Files
+DNS (53 TCP/UDP) is allowed so pods can resolve Service and RDS names.
 
 | File | Covers |
 | --- | --- |
@@ -42,4 +28,4 @@ DNS (53 TCP/UDP) is allowed so pods can resolve Service and RDS names. We do not
 | [checkout-redis.yaml](checkout-redis.yaml) | Redis accept from checkout |
 | [orders-rabbitmq.yaml](orders-rabbitmq.yaml) | RabbitMQ accept from orders |
 
-EKS needs a CNI that enforces NetworkPolicy (Amazon VPC CNI policy addon, or Calico). Stage-1 cluster should have that if `enable_network_policies` is on in Terraform; this folder is the YAML equivalent.
+UI ingress is not limited to a pod source (ALB traffic is not a pod in this namespace). Carts egress is **443 only** — no DynamoDB Local. EKS needs a CNI that enforces NetworkPolicy.

@@ -1,38 +1,20 @@
 # Terraform
 
-## Layout (and why)
+| Path | Role |
+| --- | --- |
+| `terraform/bootstrap/` | State bucket + GitHub **OIDC** role. Uses local state until the bucket exists. |
+| `terraform/envs/` | Root module. The one place I `plan` / `apply` the stack. |
+| `terraform/modules/*` | One concern each. |
 
-| Path | Role | Why split |
-| --- | --- | --- |
-| `terraform/bootstrap/` | Creates the state bucket | Must use local state until the bucket exists |
-| `terraform/envs/` | Root module: wires everything | One place to `plan` / `apply` the real stack |
-| `terraform/modules/*` | One concern each | Smaller reviews; clearer ownership |
+`envs` does not invent sizes. It reads **tfvars** (Terraform variables) and passes them into modules.
 
-`envs` does not invent resource sizes. It reads `prod.tfvars` / `dev.tfvars` and passes values into modules.
+Backend: S3 + `use_lockfile = true`. [bootstrap.md](bootstrap.md) · [stages.md](stages.md)
 
-## Backend
+CI: plan → Issue `approve` → apply. [ci.md](ci.md)
 
-S3 + `use_lockfile = true`. See [bootstrap.md](bootstrap.md) and [stages.md](stages.md).
+Helm provider is **v3**: `kubernetes = local.helm_kubernetes` (not a nested `kubernetes { }` block). Why: [mortem/helm-provider.md](../mortem/helm-provider.md).
 
-## CI
-
-Plan and apply live in one workflow with a manual Issue approval before apply. See [ci.md](ci.md).
-
-## Provider note (Helm)
-
-We use Helm provider **v3**. Kubernetes connection settings use attribute form:
-
-```hcl
-provider "helm" {
-  kubernetes = local.helm_kubernetes
-}
-```
-
-(not a nested `kubernetes { }` block — that was Helm provider v2).
-
-## Next command
-
-If the state bucket already exists and `backend.hcl` is present:
+If the state bucket exists and `backend.hcl` is present:
 
 ```bash
 cd terraform/envs

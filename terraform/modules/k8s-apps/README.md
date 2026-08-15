@@ -1,4 +1,5 @@
-# Platform for the shop: ALB controller + optional Cluster Autoscaler + carts IRSA.
-# The retail-store pods themselves are applied from k8s/ via .github/workflows/k8s-deploy.yml.
+# k8s-apps
+
+Platform only: **ALB** controller, optional Cluster Autoscaler, carts IRSA. Shop pods come from `k8s/` (or Helm), not this module. I leave it off until nodes are Ready (`enable_app_deploy`).
 
 [docs/modules/k8s-apps.md](../../../docs/modules/k8s-apps.md)
