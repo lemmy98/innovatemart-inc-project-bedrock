@@ -12,10 +12,14 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/liveness
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:193854996687:certificate/1bafcd3e-d5a7-4783-af09-e5afe2180aa7
 spec:
   ingressClassName: alb
   rules:
-    - http:
+    - host: lemikan-third-semester-exam-project.fyi
+      http:
         paths:
           - path: /
             pathType: Prefix
