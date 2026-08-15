@@ -4,7 +4,7 @@ metadata:
   name: ui
   labels:
     app.kubernetes.io/name: ui
-    app.kubernetes.io/instance: ui
+    app.kubernetes.io/instance: retail-store
     app.kubernetes.io/component: service
     app.kubernetes.io/part-of: retail-store
     app.kubernetes.io/managed-by: kustomize

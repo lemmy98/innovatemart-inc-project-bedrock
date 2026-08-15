@@ -29,8 +29,15 @@ spec:
     - ports:
         - port: 5432
           protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: orders
+              app.kubernetes.io/component: rabbitmq
+      ports:
         - port: 5672
           protocol: TCP
+    - ports:
         - port: 53
           protocol: UDP
         - port: 53

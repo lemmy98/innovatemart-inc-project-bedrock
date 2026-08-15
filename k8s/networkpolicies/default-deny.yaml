@@ -1,11 +1,18 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-ingress
+  name: default-deny-all
   labels:
     app.kubernetes.io/part-of: retail-store
     app.kubernetes.io/managed-by: kustomize
 spec:
+  # Baseline for every pod in the namespace: deny all ingress and egress
+  # except what a pod's own NetworkPolicy explicitly allows (NetworkPolicy
+  # allow-rules are additive/OR'd across all policies selecting a pod, so
+  # this only tightens pods that don't already carry their own Egress rules
+  # — namely checkout-redis and orders-rabbitmq; ui/catalog/carts/checkout/
+  # orders already declare everything they need and are unaffected).
   podSelector: {}
   policyTypes:
     - Ingress
+    - Egress

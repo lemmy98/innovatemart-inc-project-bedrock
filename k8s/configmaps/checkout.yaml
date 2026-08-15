@@ -4,7 +4,7 @@ metadata:
   name: checkout
   labels:
     app.kubernetes.io/name: checkout
-    app.kubernetes.io/instance: checkout
+    app.kubernetes.io/instance: retail-store
     app.kubernetes.io/component: service
     app.kubernetes.io/part-of: retail-store
     app.kubernetes.io/managed-by: kustomize

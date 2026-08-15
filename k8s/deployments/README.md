@@ -1,10 +1,24 @@
 # deployments/
 
-The five shop processes plus checkout Redis, as Deployments.
+## Aim
 
-Catalog/orders/carts data lives in RDS or DynamoDB, so pods can die and come back. RabbitMQ needs a stable name, so I put it in [statefulsets/](../statefulsets/README.md).
+Run the five shop processes (and checkout’s Redis) as **stateless** replicas that can die and come back without losing catalog/orders/carts data.
 
-Pinned images `…:1.6.2`, requests/limits sized for `t3.small`, readiness + liveness, `envFrom` ConfigMap + Secret. `replicas: 1` everywhere.
+## Why Deployments here
+
+Catalog, carts, orders, checkout, and ui keep their data in RDS, DynamoDB, or (for checkout) a separate Redis pod. A Deployment is the right primitive: rolling updates, `maxUnavailable: 1`, no sticky volume.
+
+RabbitMQ is the exception — it needs a stable DNS name (`orders-rabbitmq-0.orders-rabbitmq`). That lives in [statefulsets/](../statefulsets/README.md).
+
+## What we aim to achieve
+
+- **Pinned images** `…:1.6.2` — same upstream release as the Helm charts.
+- **Requests/limits sized for `t3.small`** — the upstream all-in-one YAML asked for 256–512 Mi and 256m CPU per Java pod; two nodes cannot schedule that. These numbers match `helm/retail-store/values.yaml`.
+- **Readiness + liveness** — ALB and kubelet should not send traffic to a JVM that is still booting.
+- **Dropped capabilities, non-root, read-only root FS** — baseline hardening from the sample, kept on purpose.
+- **`envFrom` ConfigMap + Secret** — config and credentials stay out of the container spec.
+
+## Files
 
 | File | Workload |
 | --- | --- |
@@ -15,4 +29,8 @@ Pinned images `…:1.6.2`, requests/limits sized for `t3.small`, readiness + liv
 | [checkout.yaml](checkout.yaml) | Checkout API → Redis + orders |
 | [checkout-redis.yaml](checkout-redis.yaml) | Redis 6 for checkout only |
 
-I do not add `catalog-mysql`, `orders-postgresql`, or `carts-dynamodb` Deployments. Those were laptop databases and fail the exam on EKS.
+`replicas: 1` everywhere. Two `t3.small` nodes are already tight; HA is a later conversation, not this exam.
+
+## What is deliberately missing
+
+No `catalog-mysql`, `orders-postgresql`, or `carts-dynamodb` Deployments. Those were the upstream laptop databases. On EKS they fail the managed-data requirement.

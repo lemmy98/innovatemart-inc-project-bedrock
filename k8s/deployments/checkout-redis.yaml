@@ -4,7 +4,7 @@ metadata:
   name: checkout-redis
   labels:
     app.kubernetes.io/name: checkout
-    app.kubernetes.io/instance: checkout
+    app.kubernetes.io/instance: retail-store
     app.kubernetes.io/component: redis
     app.kubernetes.io/owner: retail-store-sample
     app.kubernetes.io/managed-by: kustomize
@@ -13,14 +13,14 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: checkout
-      app.kubernetes.io/instance: checkout
+      app.kubernetes.io/instance: retail-store
       app.kubernetes.io/component: redis
       app.kubernetes.io/owner: retail-store-sample
   template:
     metadata:
       labels:
         app.kubernetes.io/name: checkout
-        app.kubernetes.io/instance: checkout
+        app.kubernetes.io/instance: retail-store
         app.kubernetes.io/component: redis
         app.kubernetes.io/owner: retail-store-sample
     spec:
@@ -47,6 +47,7 @@ spec:
               cpu: 25m
               memory: 32Mi
             limits:
+              cpu: 100m
               memory: 64Mi
           livenessProbe:
             tcpSocket:

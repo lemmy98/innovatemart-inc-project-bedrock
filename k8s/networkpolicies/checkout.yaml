@@ -32,7 +32,12 @@ spec:
           protocol: TCP
         - port: 8080
           protocol: TCP
-    - ports:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: checkout
+              app.kubernetes.io/component: redis
+      ports:
         - port: 6379
           protocol: TCP
     - ports:
