@@ -1,24 +1,24 @@
 output "vpc_id" {
   description = "ID of the VPC."
-  value       = aws_vpc.this.id
+  value       = module.vpc.vpc_id
 }
 
 output "vpc_cidr" {
   description = "CIDR of the VPC."
-  value       = aws_vpc.this.cidr_block
+  value       = module.vpc.vpc_cidr_block
 }
 
 output "public_subnet_ids" {
   description = "Public subnet IDs."
-  value       = aws_subnet.public[*].id
+  value       = module.vpc.public_subnets
 }
 
 output "private_subnet_ids" {
   description = "Private subnet IDs."
-  value       = aws_subnet.private[*].id
+  value       = module.vpc.private_subnets
 }
 
 output "nat_gateway_ids" {
-  description = "NAT Gateway IDs (one when single_nat_gateway is true)."
-  value       = aws_nat_gateway.this[*].id
+  description = "NAT Gateway IDs (should be one when single_nat_gateway is true)."
+  value       = module.vpc.natgw_ids
 }

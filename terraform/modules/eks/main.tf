@@ -72,7 +72,10 @@ module "eks" {
         workload = "retail"
       }
 
-      tags = var.tags
+      tags = merge(var.tags, {
+        "k8s.io/cluster-autoscaler/enabled"             = "true"
+        "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
+      })
 
       cloudinit_pre_nodeadm = var.install_helm_on_nodes ? [
         {
@@ -83,22 +86,40 @@ module "eks" {
     }
   }
 
-  access_entries = {
-    developer = {
-      principal_arn = var.developer_principal_arn
-      type          = "STANDARD"
+  access_entries = merge(
+    {
+      developer = {
+        principal_arn = var.developer_principal_arn
+        type          = "STANDARD"
 
-      policy_associations = {
-        view = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
-          access_scope = {
-            type       = "namespace"
-            namespaces = [var.app_namespace]
+        policy_associations = {
+          view = {
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+            access_scope = {
+              type       = "namespace"
+              namespaces = [var.app_namespace]
+            }
+          }
+        }
+      }
+    },
+    {
+      for idx, arn in var.operator_principal_arns :
+      "operator-${idx}" => {
+        principal_arn = arn
+        type          = "STANDARD"
+
+        policy_associations = {
+          admin = {
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+            access_scope = {
+              type = "cluster"
+            }
           }
         }
       }
     }
-  }
+  )
 
   tags = merge(var.tags, {
     Name = var.cluster_name

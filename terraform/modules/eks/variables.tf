@@ -34,12 +34,12 @@ variable "node_desired_size" {
 }
 
 variable "node_min_size" {
-  description = "Minimum node count. Keep equal to desired when not autoscaling."
+  description = "Minimum node count (Cluster Autoscaler floor)."
   type        = number
 }
 
 variable "node_max_size" {
-  description = "Maximum node count. Keep equal to desired when not autoscaling."
+  description = "Maximum node count (Cluster Autoscaler ceiling; keep small for cost)."
   type        = number
 }
 
@@ -66,6 +66,12 @@ variable "app_namespace" {
 variable "developer_principal_arn" {
   description = "IAM user ARN mapped to AmazonEKSViewPolicy."
   type        = string
+}
+
+variable "operator_principal_arns" {
+  description = "IAM principals (e.g. operator user) with AmazonEKSClusterAdminPolicy for kubectl demos."
+  type        = list(string)
+  default     = []
 }
 
 variable "tags" {

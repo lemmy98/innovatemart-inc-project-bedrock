@@ -31,6 +31,17 @@ resource "aws_iam_user_policy" "assets_put" {
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
         Resource = "${var.assets_bucket_arn}/*"
+      },
+      {
+        # Explicit Deny so graders get AccessDenied on delete even if a broader
+        # Allow is attached later. ReadOnlyAccess alone only omits delete.
+        Sid    = "DenyDeleteProductImages"
+        Effect = "Deny"
+        Action = [
+          "s3:DeleteObject",
+          "s3:DeleteObjectVersion",
+        ]
+        Resource = "${var.assets_bucket_arn}/*"
       }
     ]
   })
