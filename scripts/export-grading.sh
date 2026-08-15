@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Writes the five required non-sensitive outputs to grading.json.
+# Never pipe raw `terraform output -json` to git — it can include nested sensitive values.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/terraform/envs"

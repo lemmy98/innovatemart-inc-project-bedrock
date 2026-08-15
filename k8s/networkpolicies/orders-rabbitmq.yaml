@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: orders-rabbitmq
+  labels:
+    app.kubernetes.io/name: orders
+    app.kubernetes.io/component: rabbitmq
+    app.kubernetes.io/part-of: retail-store
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+      app.kubernetes.io/component: rabbitmq
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: orders
+              app.kubernetes.io/component: service
+      ports:
+        - port: 5672
+          protocol: TCP
+        - port: 15672
+          protocol: TCP

@@ -1,6 +1,6 @@
-# Committed Helm values. No database passwords live here.
-# Terraform creates Kubernetes secrets `catalog-db` and `orders-db` from Secrets Manager.
-# Endpoints are supplied at install time via `--set` or values.generated.yaml (gitignored).
+# Committed Helm values for EKS. No database passwords here.
+# Secrets Manager → catalog-db / orders-db via scripts/k8s-sync-secrets.sh (or helm-up.sh).
+# Endpoints and RabbitMQ password are passed at install time (--set).
 
 catalog:
   nameOverride: catalog
@@ -17,11 +17,11 @@ catalog:
   app:
     persistence:
       provider: mysql
-      endpoint: "catalog.app.persistence.endpoint=host:3306" # --set catalog.app.persistence.endpoint=host:3306
+      endpoint: "" # --set catalog.app.persistence.endpoint=host:3306
       database: catalog
-    secret:
-      create: false
-      name: catalog-db
+      secret:
+        create: false
+        name: catalog-db
 
 carts:
   nameOverride: carts
@@ -64,13 +64,19 @@ orders:
   app:
     persistence:
       provider: postgres
-      endpoint: "orders.app.persistence.endpoint=host:5432" # --set orders.app.persistence.endpoint=host:5432
+      endpoint: "" # --set orders.app.persistence.endpoint=host:5432
       database: orders
-    secret:
-      create: false
-      name: orders-db
+      secret:
+        create: false
+        name: orders-db
     messaging:
       provider: rabbitmq
+      rabbitmq:
+        secret:
+          create: true
+          name: orders-rabbitmq
+          username: orders
+          password: "" # --set at install time
 
 checkout:
   nameOverride: checkout
@@ -117,5 +123,5 @@ ui:
       alb.ingress.kubernetes.io/scheme: internet-facing
       alb.ingress.kubernetes.io/target-type: ip
       alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/liveness
-    # Omit hostnames for ALB DNS access; chart treats each entry as a hostname string.
+    # Omit hostnames for ALB DNS access until a custom domain + ACM cert exist.
     hosts: []

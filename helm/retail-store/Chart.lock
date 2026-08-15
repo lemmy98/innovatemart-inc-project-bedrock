@@ -15,4 +15,4 @@ dependencies:
   repository: oci://public.ecr.aws/aws-containers
   version: 1.6.2
 digest: sha256:79834a9141529e5253441fb9c0349df6bea91087f1faa4b3c03964b1f123eb07
-generated: "2026-08-14T19:27:57.516017+01:00"
+generated: "2026-08-13T13:17:28.845755467Z"

@@ -1,5 +1,7 @@
-"""S3 object-created handler — exam requires log line: Image received: <filename>"""
+"""S3 object-created handler for InnovateMart product image uploads.
 
+Logs the uploaded object key in the exact format the exam checks for.
+"""
 
 import json
 import logging

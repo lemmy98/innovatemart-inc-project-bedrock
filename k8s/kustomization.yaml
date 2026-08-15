@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: retail-app
+resources:
+  - namespace.yaml
+  - serviceaccounts/carts.yaml
+  - serviceaccounts/catalog.yaml
+  - serviceaccounts/checkout.yaml
+  - serviceaccounts/orders.yaml
+  - serviceaccounts/ui.yaml
+  - configmaps/carts.yaml
+  - configmaps/catalog.yaml
+  - configmaps/checkout.yaml
+  - configmaps/orders.yaml
+  - configmaps/ui.yaml
+  - services/carts.yaml
+  - services/catalog.yaml
+  - services/checkout-redis.yaml
+  - services/checkout.yaml
+  - services/orders-rabbitmq.yaml
+  - services/orders.yaml
+  - services/ui.yaml
+  - statefulsets/orders-rabbitmq.yaml
+  - deployments/carts.yaml
+  - deployments/catalog.yaml
+  - deployments/checkout-redis.yaml
+  - deployments/checkout.yaml
+  - deployments/orders.yaml
+  - deployments/ui.yaml
+  - ingress/ui.yaml
+  - networkpolicies/default-deny.yaml
+  - networkpolicies/ui.yaml
+  - networkpolicies/catalog.yaml
+  - networkpolicies/carts.yaml
+  - networkpolicies/checkout.yaml
+  - networkpolicies/orders.yaml
+  - networkpolicies/checkout-redis.yaml
+  - networkpolicies/orders-rabbitmq.yaml
