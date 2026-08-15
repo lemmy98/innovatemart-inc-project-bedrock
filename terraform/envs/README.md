@@ -1,10 +1,10 @@
 # envs
 
-This is where I wire modules. It does not declare VPC or RDS itself.
+Wires modules. Does not declare VPC or RDS itself.
 
-[stages](../../docs/terraform/stages.md) · [environments](../../docs/terraform/environments.md)
+[docs/terraform/stages.md](../../docs/terraform/stages.md) · [docs/terraform/environments.md](../../docs/terraform/environments.md)
 
-Stage 1 (`enable_app_deploy = false` in **tfvars**):
+Stage 1 (`enable_app_deploy = false`):
 
 ```bash
 terraform init -backend-config=backend.hcl

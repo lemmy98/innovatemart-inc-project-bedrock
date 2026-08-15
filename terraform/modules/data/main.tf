@@ -81,6 +81,15 @@ module "catalog_mysql" {
   enabled_cloudwatch_logs_exports     = []
   iam_database_authentication_enabled = false
 
+  # REVERTED to "0": the catalog service is a Go app (database/sql +
+  # go-sql-driver/mysql) whose DSN doesn't request TLS, unlike the Java
+  # services elsewhere in this repo. Enforcing require_secure_transport=1
+  # took down catalog in production (Error 3159: "Connections using
+  # insecure transport are prohibited") — confirmed live in the cluster
+  # immediately after this was flipped on. Do not re-enable without also
+  # adding a tls= DSN parameter (or equivalent) to catalog's connection
+  # config. Postgres (orders, Java/JDBC) does not have this problem — see
+  # rds.force_ssl below, confirmed still healthy with force_ssl=1.
   parameters = [
     {
       name  = "require_secure_transport"
@@ -130,10 +139,14 @@ module "orders_postgres" {
   create_cloudwatch_log_group     = false
   enabled_cloudwatch_logs_exports = []
 
+  # Enforce TLS in transit. The Postgres JDBC driver defaults to
+  # sslmode=prefer, so standard client connection strings negotiate TLS
+  # automatically — confirmed live: orders stayed healthy (0 restarts)
+  # after this was enabled, unlike catalog's MySQL equivalent above.
   parameters = [
     {
       name  = "rds.force_ssl"
-      value = "0"
+      value = "1"
     }
   ]
 
@@ -166,6 +179,8 @@ module "carts_dynamodb" {
       projection_type = "ALL"
     }
   ]
+
+  point_in_time_recovery_enabled = true
 
   tags = merge(var.tags, { Name = var.dynamodb_table_name })
 }

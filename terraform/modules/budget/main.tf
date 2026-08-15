@@ -6,8 +6,13 @@ resource "aws_budgets_budget" "project" {
   time_unit    = "MONTHLY"
 
   cost_filter {
-    name   = "TagKeyValue"
-    values = ["user:Project$${var.project_tag}"]
+    name = "TagKeyValue"
+    # NOTE: `$${...}` is Terraform's escape for a literal "${" — it disables
+    # interpolation entirely. That previously shipped this filter as the raw,
+    # never-matching string "user:Project${var.project_tag}", so the budget
+    # was scoped to nothing and the alert could never fire. format() avoids
+    # the ambiguity outright.
+    values = [format("user:Project$%s", var.project_tag)]
   }
 
   notification {

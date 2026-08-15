@@ -1,9 +1,14 @@
 locals {
+  # Pinned to a tagged release (matching the Helm version azure/setup-helm
+  # installs in helm-deploy.yml) rather than the mutable `main` branch —
+  # piping an unpinned, always-latest script into bash on node boot is a
+  # supply-chain risk (anyone who can push to helm/helm's default branch
+  # changes what every future node runs).
   helm_install_script = <<-EOT
     #!/bin/bash
     set -euo pipefail
     if ! command -v helm >/dev/null 2>&1; then
-      curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      curl -fsSL https://raw.githubusercontent.com/helm/helm/v3.16.4/scripts/get-helm-3 | bash
     fi
     helm version --short || true
   EOT
@@ -19,8 +24,9 @@ module "eks" {
   vpc_id     = var.vpc_id
   subnet_ids = var.subnet_ids
 
-  cluster_endpoint_public_access  = true
-  cluster_endpoint_private_access = true
+  cluster_endpoint_public_access       = true
+  cluster_endpoint_private_access      = true
+  cluster_endpoint_public_access_cidrs = var.public_access_cidrs
 
   enable_irsa                              = true
   enable_cluster_creator_admin_permissions = true

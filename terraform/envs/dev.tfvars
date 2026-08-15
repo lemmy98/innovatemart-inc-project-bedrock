@@ -24,7 +24,7 @@ cluster_version       = "1.34"
 node_instance_types   = ["t3.small"]
 node_desired_size     = 2
 node_min_size         = 2
-node_max_size         = 2
+node_max_size         = 3 # Cluster Autoscaler ceiling (bonus 5.3)
 node_disk_size        = 20
 install_helm_on_nodes = true
 log_retention_days    = 1
@@ -35,11 +35,22 @@ db_instance_class       = "db.t3.micro"
 db_allocated_storage    = 20
 backup_retention_days   = 1
 
-chart_version           = "1.6.2"
-enable_app_deploy       = false # stage 1: IaC only. flip after nodes are Ready
-enable_network_policies = true
+chart_version             = "1.6.2"
+enable_app_deploy         = false # stage 1: IaC only. flip after nodes are Ready
+enable_network_policies   = false # NetworkPolicies come from k8s/networkpolicies/
+enable_cluster_autoscaler = true
+ui_hostname               = "lemikan-third-semester-exam-project.fyi"
+acm_certificate_arn       = "arn:aws:acm:us-east-1:193854996687:certificate/1bafcd3e-d5a7-4783-af09-e5afe2180aa7"
 
 budget_limit_usd          = 20
 budget_notification_email = "lemikanemmanuel@gmail.com"
 
-enable_cluster_autoscaler = true
+# EKS public API endpoint allow-list. Every pipeline that touches this
+# cluster (terraform apply's k8s-apps Helm releases, helm-deploy.yml,
+# k8s-deploy.yml, networkpolicies.yml, cluster-verify.yml) runs on
+# GitHub-hosted runners with large, dynamic IP ranges, so restricting this
+# to a single operator IP breaks CI outright. Left open (documented) until
+# a self-hosted runner lives inside the VPC — IAM/EKS Access Entries remain
+# the real authorization boundary regardless of network reachability. See
+# terraform/envs/variables.tf and docs/architecture.md.
+admin_access_cidrs = ["0.0.0.0/0"]

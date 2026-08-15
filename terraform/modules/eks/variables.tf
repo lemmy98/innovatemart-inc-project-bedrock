@@ -79,3 +79,21 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "public_access_cidrs" {
+  description = <<-EOT
+    CIDR blocks allowed to reach the EKS public API endpoint. Required and
+    must be non-empty so an explicit choice is always recorded, even when
+    that choice is ["0.0.0.0/0"] (the current setting — see
+    terraform/envs/variables.tf for why: every CI job that talks to this
+    cluster runs on GitHub-hosted runners with dynamic IPs, and there's no
+    self-hosted runner in the VPC yet). IAM/EKS Access Entries remain the
+    real authorization boundary regardless of network reachability.
+  EOT
+  type        = list(string)
+
+  validation {
+    condition     = length(var.public_access_cidrs) > 0
+    error_message = "public_access_cidrs must contain at least one CIDR (e.g. your workstation IP as x.x.x.x/32)."
+  }
+}

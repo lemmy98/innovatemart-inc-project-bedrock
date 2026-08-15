@@ -85,19 +85,23 @@ variable "node_instance_types" {
 }
 
 variable "node_desired_size" {
-  type = number
+  description = "Desired managed node group size."
+  type        = number
 }
 
 variable "node_min_size" {
-  type = number
+  description = "Minimum node count (Cluster Autoscaler floor)."
+  type        = number
 }
 
 variable "node_max_size" {
-  type = number
+  description = "Maximum node count (Cluster Autoscaler ceiling; keep small for cost)."
+  type        = number
 }
 
 variable "node_disk_size" {
-  type = number
+  description = "Worker node root volume size in GiB."
+  type        = number
 }
 
 variable "install_helm_on_nodes" {
@@ -106,23 +110,28 @@ variable "install_helm_on_nodes" {
 }
 
 variable "log_retention_days" {
-  type = number
+  description = "CloudWatch retention (days) for EKS control-plane and Lambda log groups."
+  type        = number
 }
 
 variable "mysql_engine_version" {
-  type = string
+  description = "RDS MySQL engine version for the catalog database."
+  type        = string
 }
 
 variable "postgres_engine_version" {
-  type = string
+  description = "RDS PostgreSQL engine version for the orders database."
+  type        = string
 }
 
 variable "db_instance_class" {
-  type = string
+  description = "RDS instance class for both the catalog and orders databases (e.g. db.t3.micro)."
+  type        = string
 }
 
 variable "db_allocated_storage" {
-  type = number
+  description = "RDS allocated storage in GiB for both the catalog and orders databases."
+  type        = number
 }
 
 variable "backup_retention_days" {
@@ -141,7 +150,8 @@ variable "enable_app_deploy" {
 }
 
 variable "enable_network_policies" {
-  type = bool
+  description = "Whether module.k8s_apps should manage NetworkPolicies (false here — they're applied from k8s/networkpolicies/ instead)."
+  type        = bool
 }
 
 variable "enable_cluster_autoscaler" {
@@ -162,11 +172,37 @@ variable "acm_certificate_arn" {
 }
 
 variable "budget_limit_usd" {
-  type = number
+  description = "Monthly AWS Budget limit in USD, scoped to the Project tag."
+  type        = number
 }
 
 variable "budget_notification_email" {
   description = "Email for the AWS Budget alert."
   type        = string
+}
+
+variable "admin_access_cidrs" {
+  description = <<-EOT
+    CIDR blocks allowed to reach the EKS public API endpoint. Required, must
+    be non-empty (an empty list is what makes AWS default to 0.0.0.0/0 — this
+    variable exists so that choice is explicit, not accidental).
+
+    Currently set to ["0.0.0.0/0"] (see terraform/envs/*.tfvars): every
+    pipeline that touches this cluster — helm-deploy.yml, k8s-deploy.yml,
+    networkpolicies.yml, cluster-verify.yml, and the k8s-apps Helm releases
+    inside `terraform apply` itself — runs on GitHub-hosted runners with
+    large, dynamic IP ranges, so restricting this to a fixed operator CIDR
+    breaks CI outright with no practical workaround short of a self-hosted
+    runner inside the VPC. IAM/EKS Access Entries remain the real
+    authorization boundary regardless of network reachability. To tighten:
+    stand up a self-hosted runner in the VPC, then set this to just its
+    CIDR (+ any operator workstation IPs). See docs/architecture.md.
+  EOT
+  type        = list(string)
+
+  validation {
+    condition     = length(var.admin_access_cidrs) > 0
+    error_message = "Set at least one CIDR — use [\"0.0.0.0/0\"] if you need it open, but do so explicitly rather than leaving this empty."
+  }
 }
 

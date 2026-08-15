@@ -1,5 +1,5 @@
 # networking
 
-VPC `project-bedrock-vpc`, subnets, one NAT (in `us-east-1`). I destroy when I’m not demoing — NAT bills even idle.
+VPC, subnets, one NAT.
 
 [docs/modules/networking.md](../../../docs/modules/networking.md)

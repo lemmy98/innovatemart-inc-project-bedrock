@@ -66,6 +66,11 @@ data "aws_iam_policy_document" "lambda" {
   statement {
     sid = "WriteLogs"
     actions = [
+      # CreateLogGroup is unused at runtime (Terraform pre-creates the log
+      # group below and the function depends_on it) but kept here so the
+      # grantee's own policy is self-sufficient if the log group is ever
+      # recreated out of band.
+      "logs:CreateLogGroup",
       "logs:CreateLogStream",
       "logs:PutLogEvents",
     ]

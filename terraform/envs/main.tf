@@ -51,6 +51,7 @@ module "eks" {
   app_namespace           = var.app_namespace
   developer_principal_arn = module.iam_developer.user_arn
   operator_principal_arns = var.operator_principal_arns
+  public_access_cidrs     = var.admin_access_cidrs
   tags                    = local.required_tags
 }
 
