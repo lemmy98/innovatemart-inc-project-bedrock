@@ -1,0 +1,154 @@
+<svg viewBox="0 0 1280 900" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Project Bedrock architecture: shoppers hit an ALB in a public subnet, which routes to the ui pod on private EKS nodes; ui fans out to catalog, carts, checkout, and orders; catalog and orders use RDS MySQL and RDS Postgres in private subnets, carts uses DynamoDB via IRSA, checkout uses in-cluster Redis, orders uses in-cluster RabbitMQ; a separate S3-to-Lambda-to-CloudWatch flow processes uploaded images; an IAM developer user gets read-only console access plus a namespace-scoped EKS Access Entry.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .title { font-size: 20px; font-weight: 700; }
+    .zone-label { font-size: 12px; font-weight: 600; fill: #57606a; }
+    .box-title { font-size: 13px; font-weight: 700; }
+    .box-sub { font-size: 11px; fill: #3a4149; }
+    .edge-label { font-size: 11px; fill: #3a4149; }
+    .caption { font-size: 12px; fill: #57606a; }
+    .edge { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    .edge-dashed { stroke: #333; stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrow); }
+  </style>
+
+  <rect x="0" y="0" width="1280" height="900" fill="#ffffff"/>
+
+  <text class="title" x="640" y="28" text-anchor="middle">Project Bedrock — AWS EKS Architecture (us-east-1)</text>
+
+  <!-- Internet actor -->
+  <circle cx="470" cy="58" r="16" fill="#ffffff" stroke="#333" stroke-width="1.5"/>
+  <path d="M463,53 a7,7 0 1,1 14,0 M470,58 v12 M463,65 h14 M470,70 l-6,9 M470,70 l6,9" stroke="#333" stroke-width="1.2" fill="none"/>
+  <text x="470" y="92" text-anchor="middle" class="box-sub">Shoppers</text>
+  <line x1="470" y1="100" x2="470" y2="148" class="edge"/>
+  <text x="480" y="128" class="edge-label">HTTPS :443</text>
+
+  <!-- VPC boundary -->
+  <rect x="60" y="148" width="880" height="500" rx="6" fill="none" stroke="#57606a" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="80" y="166" class="zone-label">VPC 10.42.0.0/16 — us-east-1a / us-east-1b</text>
+
+  <!-- Public subnet strip -->
+  <rect x="80" y="176" width="840" height="68" rx="4" fill="#eef6ff" stroke="#1f6feb" stroke-width="1"/>
+  <text x="900" y="192" text-anchor="end" class="zone-label">Public subnets — ALB target, 1 NAT Gateway</text>
+
+  <rect x="360" y="200" width="220" height="40" rx="4" fill="#ffffff" stroke="#1f6feb" stroke-width="1.5"/>
+  <text x="470" y="216" text-anchor="middle" class="box-title">Application Load Balancer</text>
+  <text x="470" y="231" text-anchor="middle" class="box-sub">alb.k8s.aws — ui ingress</text>
+
+  <rect x="760" y="200" width="120" height="36" rx="4" fill="#ffffff" stroke="#1f6feb" stroke-width="1.5"/>
+  <text x="820" y="222" text-anchor="middle" class="box-sub">NAT Gateway</text>
+
+  <!-- Private subnet strip -->
+  <rect x="80" y="254" width="840" height="374" rx="4" fill="#fff7e6" stroke="#9a6700" stroke-width="1"/>
+  <text x="900" y="270" text-anchor="end" class="zone-label">Private subnets — EKS worker nodes + RDS</text>
+
+  <!-- NAT egress line, drawn low enough to clear both zone labels -->
+  <line x1="700" y1="290" x2="810" y2="236" class="edge-dashed"/>
+  <text x="690" y="286" text-anchor="end" class="edge-label" font-size="10">egress only — nodes have no public IP</text>
+
+  <!-- EKS node group -->
+  <rect x="100" y="298" width="780" height="196" rx="4" fill="none" stroke="#1a7f37" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="115" y="315" class="zone-label">EKS managed node group — project-bedrock-cluster (k8s 1.34)</text>
+
+  <!-- ui -->
+  <rect x="395" y="322" width="150" height="42" rx="4" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="470" y="347" text-anchor="middle" class="box-title">ui</text>
+
+  <!-- row of 4 -->
+  <rect x="140" y="392" width="150" height="52" rx="4" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="215" y="422" text-anchor="middle" class="box-title">catalog</text>
+
+  <rect x="310" y="392" width="150" height="52" rx="4" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="385" y="422" text-anchor="middle" class="box-title">carts</text>
+
+  <rect x="480" y="392" width="150" height="52" rx="4" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="555" y="422" text-anchor="middle" class="box-title">checkout</text>
+
+  <rect x="650" y="392" width="150" height="52" rx="4" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="725" y="422" text-anchor="middle" class="box-title">orders</text>
+
+  <!-- ui fan-out -->
+  <line x1="440" y1="364" x2="235" y2="392" class="edge"/>
+  <line x1="458" y1="364" x2="395" y2="392" class="edge"/>
+  <line x1="482" y1="364" x2="535" y2="392" class="edge"/>
+  <line x1="515" y1="364" x2="705" y2="392" class="edge"/>
+  <text x="470" y="380" text-anchor="middle" class="edge-label">HTTP :8080</text>
+
+  <!-- checkout -> orders -->
+  <line x1="630" y1="418" x2="650" y2="418" class="edge"/>
+  <text x="640" y="412" text-anchor="middle" class="edge-label" font-size="10">8080</text>
+
+  <!-- redis / rabbitmq -->
+  <rect x="480" y="466" width="150" height="46" rx="4" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="555" y="494" text-anchor="middle" class="box-title">redis (pod)</text>
+  <line x1="555" y1="444" x2="555" y2="466" class="edge"/>
+  <text x="565" y="459" class="edge-label" font-size="10">:6379</text>
+
+  <rect x="650" y="466" width="150" height="46" rx="4" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="725" y="487" text-anchor="middle" class="box-title">rabbitmq (pod)</text>
+  <text x="725" y="500" text-anchor="middle" class="box-sub" font-size="10">StatefulSet, 1 replica</text>
+  <line x1="725" y1="444" x2="725" y2="466" class="edge"/>
+  <text x="735" y="459" class="edge-label" font-size="10">:5672</text>
+
+  <!-- data layer -->
+  <rect x="140" y="540" width="220" height="64" rx="4" fill="#fdf0ee" stroke="#b3261e" stroke-width="1.5"/>
+  <text x="250" y="564" text-anchor="middle" class="box-title">RDS MySQL 8.0</text>
+  <text x="250" y="579" text-anchor="middle" class="box-sub">catalog db · db.t3.micro · single-AZ</text>
+  <line x1="215" y1="444" x2="230" y2="540" class="edge"/>
+  <text x="250" y="528" text-anchor="middle" class="edge-label">:3306 (TLS enforced)</text>
+
+  <rect x="440" y="540" width="220" height="64" rx="4" fill="#fdf0ee" stroke="#b3261e" stroke-width="1.5"/>
+  <text x="550" y="564" text-anchor="middle" class="box-title">RDS PostgreSQL 16</text>
+  <text x="550" y="579" text-anchor="middle" class="box-sub">orders db · db.t3.micro · single-AZ</text>
+  <line x1="655" y1="444" x2="590" y2="540" class="edge"/>
+  <text x="550" y="528" text-anchor="middle" class="edge-label">:5432 (TLS enforced)</text>
+
+  <text x="500" y="622" text-anchor="middle" class="caption">Security group: 3306 / 5432 allowed only from the EKS node security group — no 0.0.0.0/0</text>
+
+  <!-- Right column: managed AWS services outside the VPC -->
+  <rect x="980" y="392" width="220" height="60" rx="4" fill="#eef3ff" stroke="#205fce" stroke-width="1.5"/>
+  <text x="1090" y="415" text-anchor="middle" class="box-title">DynamoDB</text>
+  <text x="1090" y="430" text-anchor="middle" class="box-sub">carts table · on-demand · PITR on</text>
+  <polyline points="385,444 385,455 860,455 860,412 980,412" class="edge-dashed" fill="none"/>
+  <text x="620" y="451" text-anchor="middle" class="edge-label" font-size="10">IRSA → DynamoDB API (no static AWS keys in the pod)</text>
+
+  <rect x="980" y="472" width="220" height="98" rx="4" fill="#f6f8fa" stroke="#57606a" stroke-width="1.5"/>
+  <text x="1090" y="493" text-anchor="middle" class="box-title">bedrock-dev-view</text>
+  <text x="1090" y="509" text-anchor="middle" class="box-sub">IAM user · ReadOnlyAccess</text>
+  <text x="1090" y="523" text-anchor="middle" class="box-sub">+ EKS Access Entry:</text>
+  <text x="1090" y="537" text-anchor="middle" class="box-sub">AmazonEKSViewPolicy, ns=retail-app</text>
+  <text x="1090" y="553" text-anchor="middle" class="box-sub" font-size="10">get pods ✓ · delete pod ✗</text>
+  <line x1="980" y1="510" x2="880" y2="440" class="edge-dashed"/>
+
+  <rect x="980" y="600" width="220" height="50" rx="4" fill="#eafaf1" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="1090" y="620" text-anchor="middle" class="box-title">S3: bedrock-assets-*</text>
+  <text x="1090" y="635" text-anchor="middle" class="box-sub">private · Block Public Access on</text>
+
+  <line x1="1090" y1="650" x2="1090" y2="668" class="edge"/>
+  <text x="1100" y="663" class="edge-label" font-size="10">s3:ObjectCreated</text>
+
+  <rect x="980" y="668" width="220" height="50" rx="4" fill="#fff8e1" stroke="#c77700" stroke-width="1.5"/>
+  <text x="1090" y="688" text-anchor="middle" class="box-title">Lambda</text>
+  <text x="1090" y="703" text-anchor="middle" class="box-sub">bedrock-asset-processor</text>
+
+  <line x1="1090" y1="718" x2="1090" y2="736" class="edge"/>
+  <text x="1100" y="731" class="edge-label" font-size="10">"Image received: [filename]"</text>
+
+  <rect x="980" y="736" width="220" height="50" rx="4" fill="#f3eefc" stroke="#6639ba" stroke-width="1.5"/>
+  <text x="1090" y="756" text-anchor="middle" class="box-title">CloudWatch Logs</text>
+  <text x="1090" y="771" text-anchor="middle" class="box-sub">control-plane, containers, Lambda</text>
+
+  <!-- EKS control-plane + container logs -> CloudWatch, routed clear of the DynamoDB/IAM/S3/Lambda boxes -->
+  <polyline points="880,434 940,434 940,761 980,761" class="edge" fill="none"/>
+  <text x="928" y="580" text-anchor="end" class="edge-label">control-plane +</text>
+  <text x="928" y="592" text-anchor="end" class="edge-label">container logs</text>
+
+  <text x="640" y="810" text-anchor="middle" class="caption">Single NAT Gateway (cost guardrail) · every resource tagged Project=tinyuka-2025-capstone</text>
+  <text x="640" y="828" text-anchor="middle" class="caption">AWS Budget ~$20/mo with 80% forecasted / 100% actual email alerts</text>
+</svg>

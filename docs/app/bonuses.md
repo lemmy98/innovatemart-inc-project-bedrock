@@ -31,7 +31,7 @@ DNS is at Cloudflare (`kyle.ns.cloudflare.com` / `gwen.ns.cloudflare.com`), not 
 
 Cloudflare flattens the apex CNAME. Do not orange-cloud the `@` record if graders should see the ACM issuer (`Amazon RSA 2048`).
 
-3. Helm values / `k8s/ingress/ui.yaml` already set the hostname, `certificate-arn`, HTTPS :443, and SSL redirect. Upgrade the live `ui` release (or **Helm Deploy** / `./scripts/helm-up.sh`) so the Ingress ARN is the issued cert above — a truncated ARN will leave the ALB on :80 only.
+3. Helm values / `k8s/ingress/ui.yaml` already set the hostname, `certificate-arn`, HTTPS :443, and SSL redirect.
 
 YAML path: same annotations + `spec.rules[].host` on [`k8s/ingress/ui.yaml`](../../k8s/ingress/ui.yaml).
 
@@ -46,8 +46,6 @@ RUN_CA=1 ./scripts/demo-bonuses.sh
 
 # Or Actions → Cluster Verify (optional CA input)
 ```
-
-Operator IAM user `devlot` has an EKS Access Entry (`AmazonEKSClusterAdminPolicy`) so local `kubectl` works after Terraform apply.
 
 ## 5.3 Cluster Autoscaler
 

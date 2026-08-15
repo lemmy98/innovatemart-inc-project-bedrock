@@ -35,7 +35,7 @@ Pinned chart version **1.6.2**. In-cluster MySQL / Postgres / DynamoDB Local are
 | ui | 1 | 50m | 256Mi | 384Mi |
 | AWS LB Controller | 1 | 50m | 64Mi | (chart default) |
 
-UI Ingress: internet-facing ALB, target type `ip`, health check `/actuator/health/liveness`. HTTPS :443 on `lemikan-third-semester-exam-project.fyi` (ACM in `us-east-1`) with HTTP → HTTPS redirect.
+UI Ingress: internet-facing ALB, target type `ip`, health check `/actuator/health/liveness`. HTTP :80 first; HTTPS after a real subdomain + ACM (bonus 5.2).
 
 ## What we skip vs what waits on AWS
 
@@ -44,7 +44,7 @@ UI Ingress: internet-facing ALB, target type `ip`, health check `/actuator/healt
 | OpenSearch | Skip — too much RAM for `t3.small` nodes |
 | In-cluster MySQL / Postgres / DynamoDB Local on EKS | Skip — exam wants RDS + DynamoDB; `k8s/` points at managed data |
 | Cluster Autoscaler (bonus 5.3) | In scope — min 2 / max 3 nodes; scale-up demo after the shop is up |
-| TLS / ACM (bonus 5.2) | In scope — ACM issued for `lemikan-third-semester-exam-project.fyi`; Ingress listens 80+443 and redirects to HTTPS |
+| TLS / ACM (bonus 5.2) | In scope — HTTP first. After the ALB hostname exists, point a real subdomain at it (ACM cannot validate nip.io) |
 
 ## Root outputs (exactly five)
 
