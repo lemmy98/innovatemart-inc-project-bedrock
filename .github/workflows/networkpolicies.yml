@@ -4,11 +4,15 @@ name: NetworkPolicies
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
     paths:
       - "k8s/networkpolicies/**"
       - ".github/workflows/networkpolicies.yml"
   workflow_dispatch:
+
+concurrency:
+  group: networkpolicies
+  cancel-in-progress: false
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -23,6 +27,7 @@ jobs:
   apply:
     name: kubectl apply networkpolicies
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -1,7 +1,8 @@
 # Terraform CI for Project Bedrock (AWS)
 #
-# TESTING MODE: plan → approve → apply all run on **dev**.
-# When stable, change the `on:` branches and approval/apply `if:` filters to main only.
+# plan → approve → apply all run on **main**: PRs against main get a plan
+# comment, and pushes to main (i.e. merges) go through manual approval, then
+# apply the exact plan that was approved.
 #
 # Flow:
 #   1. plan     — Terraform plan + Infracost cost estimate
@@ -18,19 +19,21 @@ name: Terraform
 
 on:
   push:
-    branches: [dev] # TODO: switch to [main] when testing is done
+    branches: [main]
     paths:
       - "terraform/**"
       - "lambda/**"
-      - "helm/**"
       - ".github/workflows/terraform.yml"
   pull_request:
-    branches: [dev] # TODO: switch to [main] when testing is done
+    branches: [main]
     paths:
       - "terraform/**"
       - "lambda/**"
-      - "helm/**"
       - ".github/workflows/terraform.yml"
+
+concurrency:
+  group: tf-envs-state
+  cancel-in-progress: false
 
 env:
   TF_DIR: terraform/envs
@@ -52,6 +55,7 @@ jobs:
   plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}
@@ -173,13 +177,14 @@ jobs:
             --behavior=update
 
   # ---------------------------------------------------------------------------
-  # 2) Approval — push to dev only (testing)
+  # 2) Approval — push to main only
   # ---------------------------------------------------------------------------
   approval:
     name: Await manual approval
     needs: plan
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 1440
     steps:
       - name: Wait for approval issue
         uses: trstringer/manual-approval@v1
@@ -187,9 +192,9 @@ jobs:
           secret: ${{ github.token }}
           approvers: lemmy98
           minimum-approvals: 1
-          issue-title: "APPROVE DEPLOY (dev): Terraform apply for ${{ github.sha }}"
+          issue-title: "APPROVE DEPLOY: Terraform apply for ${{ github.sha }}"
           issue-body: |
-            ## Terraform apply waiting for approval (testing on `dev`)
+            ## Terraform apply waiting for approval
 
             - **Commit:** ${{ github.sha }}
             - **Branch:** `${{ github.ref_name }}`
@@ -201,16 +206,15 @@ jobs:
             3. Comment **`approve`** on this issue to run apply.
             4. Comment **`deny`** to cancel.
 
-            When testing is done, switch this pipeline to `main` only.
-
   # ---------------------------------------------------------------------------
   # 3) Apply — after approval; exact plan from the plan job
   # ---------------------------------------------------------------------------
   apply:
     name: Terraform Apply
     needs: approval
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}
@@ -265,3 +269,16 @@ jobs:
 
       - name: Terraform apply
         run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Export grading.json
+        working-directory: ${{ github.workspace }}
+        run: |
+          chmod +x scripts/export-grading.sh
+          ./scripts/export-grading.sh
+
+      - name: Upload grading.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: grading-${{ github.sha }}
+          path: grading.json
+          retention-days: 30

@@ -14,16 +14,20 @@ name: Terraform Bootstrap
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
     paths:
       - "terraform/bootstrap/**"
       - ".github/workflows/terraform-bootstrap.yml"
   workflow_dispatch:
   pull_request:
-    branches: [dev]
+    branches: [main]
     paths:
       - "terraform/bootstrap/**"
       - ".github/workflows/terraform-bootstrap.yml"
+
+concurrency:
+  group: tf-bootstrap-state
+  cancel-in-progress: false
 
 env:
   TF_DIR: terraform/bootstrap
@@ -40,6 +44,7 @@ jobs:
   plan:
     name: Bootstrap Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}
@@ -113,8 +118,9 @@ jobs:
   approval:
     name: Await manual approval
     needs: plan
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 1440
     steps:
       - name: Wait for approval issue
         uses: trstringer/manual-approval@v1
@@ -139,8 +145,9 @@ jobs:
   apply:
     name: Bootstrap Apply
     needs: approval
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}

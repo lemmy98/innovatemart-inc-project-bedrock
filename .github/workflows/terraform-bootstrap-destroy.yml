@@ -20,6 +20,10 @@ env:
   TF_VERSION: "1.11.4"
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
+concurrency:
+  group: tf-bootstrap-state
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write
@@ -29,6 +33,7 @@ jobs:
   guard:
     name: Confirm bootstrap destroy intent
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Require typed confirmation
         run: |
@@ -36,8 +41,8 @@ jobs:
             echo "Refusing: type exactly 'destroy-bootstrap'."
             exit 1
           fi
-          if [ "${{ github.ref }}" != "refs/heads/dev" ]; then
-            echo "Refusing: gated to dev while testing. Current: ${{ github.ref }}"
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Refusing: gated to main. Current: ${{ github.ref }}"
             exit 1
           fi
 
@@ -45,6 +50,7 @@ jobs:
     name: Bootstrap destroy plan
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}
@@ -121,6 +127,7 @@ jobs:
     name: Await manual approval
     needs: plan
     runs-on: ubuntu-latest
+    timeout-minutes: 1440
     steps:
       - name: Wait for approval issue
         uses: trstringer/manual-approval@v1
@@ -143,6 +150,7 @@ jobs:
     name: Bootstrap Destroy
     needs: approval
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}

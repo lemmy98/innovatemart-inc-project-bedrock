@@ -10,7 +10,7 @@ name: Helm Deploy
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
     paths:
       - "helm/retail-store/**"
       - "scripts/helm-*.sh"
@@ -21,6 +21,10 @@ on:
         description: "Delete retail-app namespace first (creates a NEW ALB — update DNS)"
         type: boolean
         default: false
+
+concurrency:
+  group: helm-deploy
+  cancel-in-progress: false
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -37,6 +41,7 @@ jobs:
   deploy:
     name: helm upgrade --install retail-store
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -78,7 +83,7 @@ jobs:
           # Ingress may require Host when ui_hostname is set
           for i in $(seq 1 30); do
             code="$(curl -sS -o /tmp/ui.out -w '%{http_code}' --connect-timeout 5 \
-              "http://${HOST}/" || true)"
+              -H 'Host: lemikan-third-semester-exam-project.fyi' "http://${HOST}/" || true)"
             echo "attempt $i → HTTP $code"
             if [[ "$code" == "200" || "$code" == "301" || "$code" == "302" ]]; then
               head -c 200 /tmp/ui.out; echo

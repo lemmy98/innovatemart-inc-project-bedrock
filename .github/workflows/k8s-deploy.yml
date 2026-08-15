@@ -1,20 +1,33 @@
 # Deploy retail-app from k8s/ (YAML/Kustomize) onto EKS.
 #
 # Terraform owns AWS + ALB controller + Cluster Autoscaler + carts IRSA.
-# This workflow owns the shop manifests (exam YAML path).
+# Manual-only (workflow_dispatch): the live cluster is Deployment/StatefulSet-owned
+# by the Helm release (see helm-deploy.yml), and `kubectl apply -k k8s/`
+# targeting the same objects hits two separate conflicts —
+#   1) Deployment/StatefulSet spec.selector is immutable, and the raw
+#      manifests here vs. the Helm chart don't originate the same selector
+#      unless this workflow (or a manual run) has taken ownership first.
+#   2) Helm's ownership check requires the label
+#      app.kubernetes.io/managed-by: Helm on resources it manages; this
+#      workflow's kustomization sets managed-by: kustomize instead, so
+#      whichever pipeline applies last "wins" and the other starts failing
+#      its own consistency check on its next run.
+# k8s/ is kept as a working, validated reference for the plain-manifest
+# deployment path (kustomize build + dry-run pass in CI-adjacent checks),
+# but Helm is the source of truth for the actually-running app. Only run
+# this manually, and expect to reconcile ownership (see scripts/helm-up.sh)
+# before the next Helm deploy if you do. See docs/architecture.md.
 #
 # Secrets: TF_STATE_BUCKET not required. Needs AWS_ROLE_ARN (same OIDC role).
 
 name: K8s Deploy
 
 on:
-  push:
-    branches: [dev]
-    paths:
-      - "k8s/**"
-      - "scripts/k8s-*.sh"
-      - ".github/workflows/k8s-deploy.yml"
   workflow_dispatch:
+
+concurrency:
+  group: k8s-deploy
+  cancel-in-progress: false
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -29,6 +42,7 @@ jobs:
   deploy:
     name: kubectl apply -k k8s/
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4

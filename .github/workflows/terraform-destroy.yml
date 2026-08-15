@@ -1,8 +1,7 @@
 # Terraform Destroy for Project Bedrock (AWS)
 #
 # Same gated flow as apply: destroy-plan → Issue approval → apply destroy plan.
-# TESTING MODE: allowed on **dev** via workflow_dispatch only (never auto on push).
-# When stable, change the branch filter / docs to main only.
+# Manual only, via workflow_dispatch, gated to main (never auto on push).
 #
 # Does NOT destroy bootstrap (state bucket + GitHub OIDC role).
 #
@@ -25,6 +24,10 @@ env:
   TF_VERSION: "1.11.4"
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
+concurrency:
+  group: tf-envs-state
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write
@@ -34,6 +37,7 @@ jobs:
   guard:
     name: Confirm destroy intent
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Require typed confirmation
         run: |
@@ -41,8 +45,8 @@ jobs:
             echo "Refusing: type exactly 'destroy' in the confirm input."
             exit 1
           fi
-          if [ "${{ github.ref }}" != "refs/heads/dev" ]; then
-            echo "Refusing: destroy workflow is gated to the dev branch while testing."
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Refusing: destroy workflow is gated to the main branch."
             echo "Current ref: ${{ github.ref }}"
             exit 1
           fi
@@ -54,6 +58,7 @@ jobs:
     name: Terraform Destroy Plan
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}
@@ -113,6 +118,7 @@ jobs:
     name: Await manual approval
     needs: plan
     runs-on: ubuntu-latest
+    timeout-minutes: 1440
     steps:
       - name: Wait for approval issue
         uses: trstringer/manual-approval@v1
@@ -120,9 +126,9 @@ jobs:
           secret: ${{ github.token }}
           approvers: lemmy98
           minimum-approvals: 1
-          issue-title: "APPROVE DESTROY (dev): Terraform destroy for ${{ github.sha }}"
+          issue-title: "APPROVE DESTROY: Terraform destroy for ${{ github.sha }}"
           issue-body: |
-            ## Terraform **DESTROY** waiting for approval (testing on `dev`)
+            ## Terraform **DESTROY** waiting for approval
 
             This will tear down **terraform/envs** (EKS, VPC, RDS, DynamoDB, Lambda, budget, etc.).
 
@@ -144,6 +150,7 @@ jobs:
     name: Terraform Destroy
     needs: approval
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: ${{ env.TF_DIR }}
