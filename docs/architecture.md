@@ -25,17 +25,13 @@ InnovateMart’s shop runs as microservices on EKS. Shoppers hit an Application 
 </details>
 
 **EKS public endpoint access:** the API server's public endpoint allow-list
-is an explicit Terraform variable (`admin_access_cidrs` in `terraform/envs`)
-rather than an implicit default, currently set to `["0.0.0.0/0"]`. This isn't
-an oversight: every pipeline that talks to the cluster (the `k8s-apps` Helm
-releases inside `terraform apply`, plus `helm-deploy.yml`, `k8s-deploy.yml`,
-`networkpolicies.yml`, `cluster-verify.yml`) runs on GitHub-hosted runners
-with large, dynamic IP ranges, and EKS endpoint CIDR updates are too slow
-and too serialized for per-run self-allowlisting to work. IAM and EKS Access
-Entries remain the real authorization boundary regardless of network
-reachability. To tighten this: stand up a self-hosted Actions runner inside
-the VPC, then set `admin_access_cidrs` to just its CIDR plus any operator
-workstation IPs — see `terraform/modules/eks/variables.tf`.
+is `admin_access_cidrs` in `terraform/envs`. It includes my workstation
+IPv4 (`197.211.59.58/32`) and `0.0.0.0/0` so GitHub-hosted Actions can
+still reach the API (runner IPs are dynamic; EKS will not accept the IPv6
+address from a “what is my IP” page on this IPv4 cluster). IAM and EKS
+Access Entries remain the real authorization boundary. To lock the network
+path down fully: use a self-hosted runner in the VPC, then drop
+`0.0.0.0/0` and keep only that runner plus the workstation `/32`.
 
 ## Deployment path: Helm is authoritative
 

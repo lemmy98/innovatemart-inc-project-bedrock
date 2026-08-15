@@ -45,12 +45,12 @@ acm_certificate_arn       = "arn:aws:acm:us-east-1:193854996687:certificate/1baf
 budget_limit_usd          = 20
 budget_notification_email = "lemikanemmanuel@gmail.com"
 
-# EKS public API endpoint allow-list. Every pipeline that touches this
-# cluster (terraform apply's k8s-apps Helm releases, helm-deploy.yml,
-# k8s-deploy.yml, networkpolicies.yml, cluster-verify.yml) runs on
-# GitHub-hosted runners with large, dynamic IP ranges, so restricting this
-# to a single operator IP breaks CI outright. Left open (documented) until
-# a self-hosted runner lives inside the VPC — IAM/EKS Access Entries remain
-# the real authorization boundary regardless of network reachability. See
-# terraform/envs/variables.tf and docs/architecture.md.
-admin_access_cidrs = ["0.0.0.0/0"]
+# EKS public API allow-list (kubectl / CI → cluster endpoint, not the shop ALB).
+# IPv4 only — this cluster is IPv4, so EKS rejects IPv6 CIDRs (e.g. 2001:4860:7:1620::fc).
+# 0.0.0.0/0 stays so GitHub-hosted Actions can reach the API (runner IPs are dynamic
+# and do not fit in EKS's CIDR quota). IAM / EKS Access Entries still authorize who
+# can actually run commands.
+admin_access_cidrs = [
+  "197.211.59.58/32", # my current public IPv4
+  "0.0.0.0/0",        # GitHub Actions hosted runners
+]

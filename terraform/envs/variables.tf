@@ -187,16 +187,10 @@ variable "admin_access_cidrs" {
     be non-empty (an empty list is what makes AWS default to 0.0.0.0/0 — this
     variable exists so that choice is explicit, not accidental).
 
-    Currently set to ["0.0.0.0/0"] (see terraform/envs/*.tfvars): every
-    pipeline that touches this cluster — helm-deploy.yml, k8s-deploy.yml,
-    networkpolicies.yml, cluster-verify.yml, and the k8s-apps Helm releases
-    inside `terraform apply` itself — runs on GitHub-hosted runners with
-    large, dynamic IP ranges, so restricting this to a fixed operator CIDR
-    breaks CI outright with no practical workaround short of a self-hosted
-    runner inside the VPC. IAM/EKS Access Entries remain the real
-    authorization boundary regardless of network reachability. To tighten:
-    stand up a self-hosted runner in the VPC, then set this to just its
-    CIDR (+ any operator workstation IPs). See docs/architecture.md.
+    Prod/dev tfvars list the workstation public IPv4 plus ["0.0.0.0/0"] so
+    GitHub-hosted Actions can still reach the API (runner IPs are dynamic).
+    This cluster is IPv4-only — do not add IPv6 CIDRs. IAM/EKS Access
+    Entries remain the real authorization boundary. See docs/architecture.md.
   EOT
   type        = list(string)
 
