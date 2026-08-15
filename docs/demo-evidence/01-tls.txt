@@ -1,0 +1,7 @@
+=== TLS ===
+https_home=200 ssl_verify=0
+https_catalog=200
+subject=CN = retailstore.better-great.com
+issuer=C = US, O = Amazon, CN = Amazon RSA 2048 M01
+notBefore=Aug 14 00:00:00 2026 GMT
+notAfter=Feb 27 23:59:59 2027 GMT

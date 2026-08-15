@@ -1,0 +1,16 @@
+=== 5.4 NP deny ===
+000pod "np-deny-probe" deleted from retail-app namespace
+All commands and output from this session will be recorded in container logs, including credentials and sensitive information passed through the command prompt.
+If you don't see a command prompt, try pressing enter.
+curl: (28) Failed to connect to orders.retail-app.svc.cluster.local port 80 after 5023 ms: Timeout was reached
+pod retail-app/np-deny-probe terminated (Error)
+probe_rc=28 (nonzero=blocked OK)
+NAME                   POD-SELECTOR                                                          AGE
+carts                  app.kubernetes.io/component=service,app.kubernetes.io/name=carts      14m
+catalog                app.kubernetes.io/name=catalog                                        14m
+checkout               app.kubernetes.io/component=service,app.kubernetes.io/name=checkout   14m
+checkout-redis         app.kubernetes.io/component=redis,app.kubernetes.io/name=checkout     14m
+default-deny-ingress   <none>                                                                14m
+orders                 app.kubernetes.io/component=service,app.kubernetes.io/name=orders     14m
+orders-rabbitmq        app.kubernetes.io/component=rabbitmq,app.kubernetes.io/name=orders    14m
+ui                     app.kubernetes.io/component=service,app.kubernetes.io/name=ui         14m

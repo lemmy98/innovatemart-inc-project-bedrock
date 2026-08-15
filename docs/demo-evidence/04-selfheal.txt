@@ -1,0 +1,14 @@
+=== 5.5 Self-heal + RDS backup ===
+NAME                 READY   STATUS    RESTARTS   AGE   IP             NODE                          NOMINATED NODE   READINESS GATES
+ui-5fcf998f9-jjn6p   1/1     Running   0          14m   10.42.10.130   ip-10-42-10-73.ec2.internal   <none>           <none>
+NAME                 READY   STATUS    RESTARTS   AGE   IP             NODE                          NOMINATED NODE   READINESS GATES
+ui-5fcf998f9-mc9nr   1/1     Running   0          66s   10.42.11.118   ip-10-42-11-91.ec2.internal   <none>           <none>
+deleted_old=ui-5fcf998f9-jjn6p
+---------------------------------------------------------------------------
+|                           DescribeDBInstances                           |
++-----------------+-------------------------+-----------------------------+
+| BackupRetention |           Id            |      LatestRestorable       |
++-----------------+-------------------------+-----------------------------+
+|  1              |  bedrock-catalog-mysql  |  2026-08-14T23:41:08+00:00  |
+|  1              |  bedrock-orders-pg      |  2026-08-14T23:42:11+00:00  |
++-----------------+-------------------------+-----------------------------+

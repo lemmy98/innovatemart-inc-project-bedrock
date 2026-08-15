@@ -1,0 +1,19 @@
+=== 5.3 Cluster Autoscaler ===
+NAME                          STATUS   ROLES    AGE    VERSION               INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                        KERNEL-VERSION                    CONTAINER-RUNTIME
+ip-10-42-10-73.ec2.internal   Ready    <none>   170m   v1.34.9-eks-254016e   10.42.10.73   <none>        Amazon Linux 2023.12.20260803   6.12.95-124.187.amzn2023.x86_64   containerd://2.2.5+unknown
+ip-10-42-11-91.ec2.internal   Ready    <none>   140m   v1.34.9-eks-254016e   10.42.11.91   <none>        Amazon Linux 2023.12.20260803   6.12.95-124.187.amzn2023.x86_64   containerd://2.2.5+unknown
+nodes_before=2
+attempt 1 ready_nodes=2
+attempt 2 ready_nodes=2
+attempt 3 ready_nodes=2
+attempt 4 ready_nodes=2
+attempt 5 ready_nodes=2
+attempt 6 ready_nodes=3
+NAME                           STATUS   ROLES    AGE    VERSION               INTERNAL-IP    EXTERNAL-IP   OS-IMAGE                        KERNEL-VERSION                    CONTAINER-RUNTIME
+ip-10-42-10-126.ec2.internal   Ready    <none>   32s    v1.34.9-eks-254016e   10.42.10.126   <none>        Amazon Linux 2023.12.20260803   6.12.95-124.187.amzn2023.x86_64   containerd://2.2.5+unknown
+ip-10-42-10-73.ec2.internal    Ready    <none>   172m   v1.34.9-eks-254016e   10.42.10.73    <none>        Amazon Linux 2023.12.20260803   6.12.95-124.187.amzn2023.x86_64   containerd://2.2.5+unknown
+ip-10-42-11-91.ec2.internal    Ready    <none>   141m   v1.34.9-eks-254016e   10.42.11.91    <none>        Amazon Linux 2023.12.20260803   6.12.95-124.187.amzn2023.x86_64   containerd://2.2.5+unknown
+scaled ui back to 1; CA may drain extra node over time
+ip-10-42-10-126.ec2.internal   Ready   <none>   38s    v1.34.9-eks-254016e
+ip-10-42-10-73.ec2.internal    Ready   <none>   172m   v1.34.9-eks-254016e
+ip-10-42-11-91.ec2.internal    Ready   <none>   141m   v1.34.9-eks-254016e
