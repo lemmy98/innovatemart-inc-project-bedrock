@@ -35,7 +35,7 @@ db_allocated_storage    = 20
 backup_retention_days   = 1
 
 chart_version             = "1.6.2"
-enable_app_deploy         = true # ALB controller + Cluster Autoscaler + carts IRSA (shop = k8s pipeline)
+enable_app_deploy         = true  # ALB controller + Cluster Autoscaler + carts IRSA (shop = k8s pipeline)
 enable_network_policies   = false # NetworkPolicies come from k8s/networkpolicies/
 enable_cluster_autoscaler = true
 

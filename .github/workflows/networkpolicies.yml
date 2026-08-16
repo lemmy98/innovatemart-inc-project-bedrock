@@ -1,4 +1,5 @@
 # Apply NetworkPolicies only — never deletes the namespace / ALB.
+# AWS login: repo secret AWS_ROLE_ARN (GitHub OIDC → project-bedrock-github-actions).
 
 name: NetworkPolicies
 

@@ -4,7 +4,7 @@
 # Default: helm upgrade in place (keeps the same ALB / Ingress).
 # Wipe + reinstall only when workflow_dispatch sets replace_existing=true.
 #
-# Needs secret AWS_ROLE_ARN (same OIDC role as Terraform / K8s Deploy).
+# Needs secret AWS_ROLE_ARN (GitHub OIDC → IAM role project-bedrock-github-actions).
 
 name: Helm Deploy
 
