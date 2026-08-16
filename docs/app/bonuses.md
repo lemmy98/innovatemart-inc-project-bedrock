@@ -95,5 +95,5 @@ aws iam simulate-principal-policy \
   --policy-source-arn arn:aws:iam::ACCOUNT:user/bedrock-dev-view \
   --action-names s3:DeleteObject \
   --resource-arns arn:aws:s3:::bedrock-assets-alt-soe-tin-025-0021/x.jpg
-# expect: EvalDecision = implicitDeny or explicitDeny
+# expect: EvalDecision = explicitDeny  (not allowed)
 ```

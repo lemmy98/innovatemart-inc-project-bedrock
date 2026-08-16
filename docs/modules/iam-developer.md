@@ -6,7 +6,8 @@ IAM user `bedrock-dev-view` with:
 
 - AWS managed `ReadOnlyAccess`
 - Inline `s3:PutObject` on the assets bucket (graders upload a test image)
-- Explicit inline **Deny** on `s3:DeleteObject` / `s3:DeleteObjectVersion` for that bucket (demo AccessDenied)
+- Explicit inline **Deny** on `s3:DeleteObject` (and version/tag deletes) so the IAM simulator returns `explicitDeny`, not `allowed`
+- Managed policies limited to `ReadOnlyAccess` (strips leftover `AdministratorAccess`)
 - EKS Access Entry mapping (in the **eks** module) to `AmazonEKSViewPolicy` on namespace `retail-app`
 
 ## Why
