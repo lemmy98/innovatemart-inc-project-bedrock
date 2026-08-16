@@ -60,7 +60,6 @@ terraform/modules/serverless/build/
 
 # Generated artifacts that may contain secrets
 grading.raw.json
-grading.json
 helm/retail-store/values.generated.yaml
 # Chart.lock is committed with vendored charts/*.tgz so CI avoids ECR Public 429s.
 terraform/envs/backend.hcl
